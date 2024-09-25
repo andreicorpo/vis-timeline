@@ -10946,7 +10946,6 @@
 	   * @returns {Array} The ids of the visible groups
 	   */
 	  getVisibleGroups() {
-	    console.log({groups: this.groups});
 	    const ids = [];
 
 	    for (const groupId in this.groups) {
