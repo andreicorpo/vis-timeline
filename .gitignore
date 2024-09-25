@@ -17,7 +17,7 @@ npm-debug.log
 /coverage/
 /declarations/
 /dist/
-/esnext/
+# /esnext/
 /examples/graph2d-generated/
 /examples/graph2d/examples.css
 /examples/graph2d/index.html
