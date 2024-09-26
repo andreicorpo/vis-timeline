@@ -17,7 +17,9 @@ npm-debug.log
 /coverage/
 /declarations/
 /dist/
+# Commenting this out to be able to build necessary built files
 # /esnext/
+# /styles/
 /examples/graph2d-generated/
 /examples/graph2d/examples.css
 /examples/graph2d/index.html
@@ -27,5 +29,4 @@ npm-debug.log
 /gen/
 /peer/
 /standalone/
-/styles/
 /vis-timeline-0.0.0-no-version.tgz
