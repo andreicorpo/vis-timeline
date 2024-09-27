@@ -1,7 +1,8 @@
-import packageJSON from "./package.json";
 import { generateRollupConfiguration } from "vis-dev-utils";
 
-export default generateRollupConfiguration({
+import packageJSON from "./package.json";
+
+const baseConfig = generateRollupConfiguration({
   externalForPeerBuild: ["moment", "vis-data"],
   globals: {
     "@egjs/hammerjs": "Hammer",
@@ -17,5 +18,9 @@ export default generateRollupConfiguration({
   header: { name: "vis-timeline and vis-graph2d" },
   libraryFilename: "vis-timeline-graph2d",
   entryPoints: "./lib",
-  packageJSON
+  packageJSON,
 });
+
+export default baseConfig.then((result) =>
+  result.filter((v) => v.input.includes("esnext"))
+);

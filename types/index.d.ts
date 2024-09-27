@@ -42,7 +42,7 @@ export type TimelineAlignType = 'auto' | 'center' | 'left' | 'right';
 export type TimelineTimeAxisScaleType = 'millisecond' | 'second' | 'minute' | 'hour' |
   'weekday' | 'day' | 'week' | 'month' | 'year';
 export type TimelineEventPropertiesResultWhatType = 'item' | 'background' | 'axis' |
-  'group-label' | 'custom-time' | 'current-time';
+  'group-label' | 'ungrouped-area' | 'ungrouped-area-header' | 'custom-time' | 'current-time';
 export type TimelineEvents =
   'currentTimeTick' |
   'click' |
