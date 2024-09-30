@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.1
- * @date    2024-09-26T09:48:25.355Z
+ * @date    2024-09-30T13:13:31.950Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -5820,11 +5820,11 @@
 		substack: substack
 	});
 
-	const UNGROUPED$3 = '__ungrouped__';   // reserved group id for ungrouped items
+	const UNGROUPED$4 = '__ungrouped__';   // reserved group id for ungrouped items
 	const BACKGROUND$2 = '__background__'; // reserved group id for background items without group
 
-	const ReservedGroupIds$1 = {
-	  UNGROUPED: UNGROUPED$3,
+	const ReservedGroupIds$2 = {
+	  UNGROUPED: UNGROUPED$4,
 	  BACKGROUND: BACKGROUND$2
 	};
 
@@ -5984,7 +5984,7 @@
 	      }
 	    }
 
-	    if (this.itemSet.options && this.itemSet.options.showUngroupedItems && this.groupId === UNGROUPED$3) {
+	    if (this.itemSet.options && this.itemSet.options.showUngroupedItems && this.groupId === UNGROUPED$4) {
 	      this.dom.label.style.display = "none";
 	    }
 
@@ -6132,7 +6132,7 @@
 	   * @param {number} pixels
 	   */
 	  _calculateGroupSizeAndPosition() {
-	    const { offsetTop, offsetLeft, offsetWidth } = this.groupId === UNGROUPED$3 ? this.dom.ungrouped : this.dom.foreground;
+	    const { offsetTop, offsetLeft, offsetWidth } = this.groupId === UNGROUPED$4 ? this.dom.ungrouped : this.dom.foreground;
 	    this.top = offsetTop;
 	    this.right = offsetLeft;
 	    this.width = offsetWidth;
@@ -6321,7 +6321,7 @@
 	    for (let i = 0, ii = this.visibleItems.length; i < ii; i++) {
 	      const item = this.visibleItems[i];
 	      item.repositionY(margin);
-	      if (!this.isVisible && this.groupId != ReservedGroupIds$1.BACKGROUND) {
+	      if (!this.isVisible && this.groupId != ReservedGroupIds$2.BACKGROUND) {
 	        if (item.displayed) item.hide();
 	      }
 	    }
@@ -6382,7 +6382,7 @@
 	      },
 
 	      () => {
-	        if(this.groupId === UNGROUPED$3) {
+	        if(this.groupId === UNGROUPED$4) {
 	          if (this.itemSet.options.rtl) {
 	            this.dom.ungrouped.style.paddingRight = `${this.itemSet.props.right}px`;
 	          } else {
@@ -6440,7 +6440,7 @@
 	   * @private
 	   */
 	  _isGroupVisible(range, margin) {
-	    return (this.groupId === UNGROUPED$3 &&
+	    return (this.groupId === UNGROUPED$4 &&
 	        this.itemSet.dom.ungrouped.clientHeight > 0) ||
 	      (this.top <= range.body.domProps.centerContainer.height - range.body.domProps.scrollTop + margin.axis)
 	    && (this.top + this.height + margin.axis >= - range.body.domProps.scrollTop);
@@ -6488,7 +6488,7 @@
 	    else {
 	      height = this.props.label.height;
 	    }
-	    return this.groupId === UNGROUPED$3 ? 0 : height;
+	    return this.groupId === UNGROUPED$4 ? 0 : height;
 	  }
 
 	  /**
@@ -6501,17 +6501,17 @@
 
 	    // No need to add this group in the itemSet's foreground
 	    // since it will not be visible there
-	    if (!this.dom.foreground.parentNode && this.groupId !== UNGROUPED$3) {
+	    if (!this.dom.foreground.parentNode && this.groupId !== UNGROUPED$4) {
 	      this.itemSet.dom.foreground.appendChild(this.dom.foreground);
 	    }
 
 	    // No need to add this group in the itemSet's background
 	    // since it will not be visible there
-	    if (!this.dom.background.parentNode && this.groupId !== UNGROUPED$3) {
+	    if (!this.dom.background.parentNode && this.groupId !== UNGROUPED$4) {
 	      this.itemSet.dom.background.appendChild(this.dom.background);
 	    }
 
-	    if (this.groupId === UNGROUPED$3 && !this.dom.ungrouped.parentNode) {
+	    if (this.groupId === UNGROUPED$4 && !this.dom.ungrouped.parentNode) {
 	      if(this.itemSet.options.ungroupedTemplate) {
 	        const templateFunction = this.itemSet.options.ungroupedTemplate.bind(this);
 	        templateFunction(this.dom.ungrouped);
@@ -6755,7 +6755,7 @@
 	    const visibleItems = [];
 	    const visibleItemsLookup = {}; // we keep this to quickly look up if an item already exists in the list without using indexOf on visibleItems
 
-	    if (!this.isVisible && this.height !== undefined && this.groupId != ReservedGroupIds$1.BACKGROUND) {
+	    if (!this.isVisible && this.height !== undefined && this.groupId != ReservedGroupIds$2.BACKGROUND) {
 	      for (let i = 0; i < oldVisibleItems.length; i++) {
 	        var item = oldVisibleItems[i];
 	        if (item.displayed) item.hide();
@@ -6896,7 +6896,7 @@
 	   * @private
 	   */
 	  _checkIfVisible(item, visibleItems, range) {
-	      if (item.isVisible(range) || this.groupId === UNGROUPED$3) {
+	      if (item.isVisible(range) || this.groupId === UNGROUPED$4) {
 	        if (!item.displayed) item.show();
 	        // reposition item horizontally
 	        item.repositionX();
@@ -8477,7 +8477,7 @@
 	      throw new Error('Cannot redraw item: no parent attached');
 	    }
 	    if (!this.dom.box.parentNode) {
-	      const container = this.parent.groupId === ReservedGroupIds$1.UNGROUPED ? this.parent.dom.ungrouped : this.parent.dom.foreground;
+	      const container = this.parent.groupId === ReservedGroupIds$2.UNGROUPED ? this.parent.dom.ungrouped : this.parent.dom.foreground;
 	      if (!container) {
 	        throw new Error('Cannot redraw item: parent has no foreground container element');
 	      }
@@ -8894,7 +8894,7 @@
 	      throw new Error('Cannot redraw item: no parent attached');
 	    }
 	    if (!this.dom.box.parentNode) {
-	      const container = this.parent.groupId === ReservedGroupIds$1.UNGROUPED ? this.parent.dom.ungrouped : this.parent.dom.background;
+	      const container = this.parent.groupId === ReservedGroupIds$2.UNGROUPED ? this.parent.dom.ungrouped : this.parent.dom.background;
 	      if (!container) {
 	        throw new Error('Cannot redraw item: parent has no background container element');
 	      }
@@ -9846,11 +9846,11 @@
 
 	ClusterItem.prototype.baseClassName = 'vis-item vis-range vis-cluster';
 
-	const UNGROUPED$2 = '__ungrouped__';   // reserved group id for ungrouped items
+	const UNGROUPED$3 = '__ungrouped__';   // reserved group id for ungrouped items
 	const BACKGROUND$1 = '__background__'; // reserved group id for background items without group
 
-	const ReservedGroupIds = {
-	  UNGROUPED: UNGROUPED$2,
+	const ReservedGroupIds$1 = {
+	  UNGROUPED: UNGROUPED$3,
 	  BACKGROUND: BACKGROUND$1
 	};
 
@@ -10007,7 +10007,7 @@
 	                            }
 
 	                            const groupId = this.itemSet.getGroupId(item.data);
-	                            const group = this.itemSet.groups[groupId] || this.itemSet.groups[ReservedGroupIds.UNGROUPED];
+	                            const group = this.itemSet.groups[groupId] || this.itemSet.groups[ReservedGroupIds$1.UNGROUPED];
 	                            let cluster = this._getClusterForItems(clusterItems, group, oldClusters, options);
 	                            clusters.push(cluster);
 
@@ -10150,8 +10150,13 @@
 	    }
 	}
 
-	const UNGROUPED$1 = '__ungrouped__';   // reserved group id for ungrouped items
+	const UNGROUPED$2 = '__ungrouped__';   // reserved group id for ungrouped items
 	const BACKGROUND = '__background__'; // reserved group id for background items without group
+
+	const ReservedGroupIds = {
+	  UNGROUPED: UNGROUPED$2,
+	  BACKGROUND
+	};
 
 	/**
 	 * An ItemSet holds a set of items and ranges which can be displayed in a
@@ -11115,7 +11120,7 @@
 	  _firstGroup() {
 	    const firstGroupIndex = (this.options.orientation.item == 'top') ? 0 : (this.groupIds.length - 1);
 	    const firstGroupId = this.groupIds[firstGroupIndex];
-	    const firstGroup = this.groups[firstGroupId] || this.groups[UNGROUPED$1];
+	    const firstGroup = this.groups[firstGroupId] || this.groups[UNGROUPED$2];
 
 	    return firstGroup || null;
 	  }
@@ -11126,7 +11131,7 @@
 	   * @protected
 	   */
 	  _updateUngrouped() {
-	    let ungrouped = this.groups[UNGROUPED$1];
+	    let ungrouped = this.groups[UNGROUPED$2];
 	    let item;
 	    let itemId;
 
@@ -11141,7 +11146,7 @@
 	          if (this.items.hasOwnProperty(itemId)) {
 	            item = this.items[itemId];
 	            item.parent && item.parent.remove(item);
-	            const groupId = this.getGroupId(item.data) || UNGROUPED$1;
+	            const groupId = this.getGroupId(item.data) || UNGROUPED$2;
 	            const group = this.groups[groupId];
 	            group && group.add(item) || item.hide();
 	          }
@@ -11151,10 +11156,10 @@
 	    else {
 	      // create a group holding all (unfiltered) items
 	      if (!ungrouped) {
-	        const id = UNGROUPED$1;
+	        const id = UNGROUPED$2;
 	        const data = null;
 	        ungrouped = new Group(id, data, this);
-	        this.groups[UNGROUPED$1] = ungrouped;
+	        this.groups[UNGROUPED$2] = ungrouped;
 
 	        for (itemId in this.items) {
 	          if (this.items.hasOwnProperty(itemId)) {
@@ -11360,7 +11365,7 @@
 	     return BACKGROUND;
 	    }
 	    else {
-	      return this.groupsData ? itemData.group : UNGROUPED$1;
+	      return this.groupsData ? itemData.group : UNGROUPED$2;
 	    }
 	  }
 
@@ -11479,7 +11484,7 @@
 
 	      if (!group) {
 	        // check for reserved ids
-	        if (id == UNGROUPED$1 || id == BACKGROUND) {
+	        if (id == UNGROUPED$2 || id == BACKGROUND) {
 	          throw new Error(`Illegal group id. ${id} is a reserved id.`);
 	        }
 
@@ -11623,7 +11628,7 @@
 	    this.items[item.id] = item;
 
 	    // add to group
-	    const groupId = this.getGroupId(item.data) || UNGROUPED$1;
+	    const groupId = this.getGroupId(item.data) || UNGROUPED$2;
 	    const group = this.groups[groupId];
 
 	    if (!group) {
@@ -11645,7 +11650,7 @@
 	    // update the items data (will redraw the item when displayed)
 	    item.setData(itemData);
 
-	    const groupId = this.getGroupId(item.data) || UNGROUPED$1;
+	    const groupId = this.getGroupId(item.data) || UNGROUPED$2;
 	    const group = this.groups[groupId];
 	    if (!group) {
 	      item.groupShowing = false;
@@ -12807,7 +12812,7 @@
 	      clientY >= ungroupedRect.top &&
 	      clientY < ungroupedRect.top + ungrouped.offsetHeight
 	    ) {
-	      return this.groups[UNGROUPED$1];
+	      return this.groups[UNGROUPED$2];
 	    }
 
 	    for (let i = 0; i < groupIds.length; i++) {
@@ -17960,7 +17965,7 @@
 	  }
 	};
 
-	var UNGROUPED = '__ungrouped__'; // reserved group id for ungrouped items
+	var UNGROUPED$1 = '__ungrouped__'; // reserved group id for ungrouped items
 
 	/**
 	 * This is the constructor of the LineGraph. It requires a Timeline body and options.
@@ -18155,8 +18160,8 @@
 	      }
 	    }
 
-	    if (this.groups.hasOwnProperty(UNGROUPED)) {
-	      this.groups[UNGROUPED].setOptions(options);
+	    if (this.groups.hasOwnProperty(UNGROUPED$1)) {
+	      this.groups[UNGROUPED$1].setOptions(options);
 	    }
 	  }
 
@@ -18399,7 +18404,7 @@
 	      var item = items[i];
 	      var groupId = item.group;
 	      if (groupId === null || groupId === undefined) {
-	        groupId = UNGROUPED;
+	        groupId = UNGROUPED$1;
 	      }
 	      groupCounts.hasOwnProperty(groupId) ? groupCounts[groupId]++ : groupCounts[groupId] = 1;
 	    }
@@ -18430,7 +18435,7 @@
 	      item = items[i];
 	      groupId = item.group;
 	      if (groupId === null || groupId === undefined) {
-	        groupId = UNGROUPED;
+	        groupId = UNGROUPED$1;
 	      }
 	      if (!groupIds && ids && (item[fieldId] !== idMap[item[fieldId]]) && existingItemsMap.hasOwnProperty(item[fieldId])) {
 	        continue;
@@ -19731,8 +19736,11 @@
 	  }
 	};
 
+	const { UNGROUPED } = ReservedGroupIds;
+
 	exports.Graph2d = Graph2d;
 	exports.Timeline = Timeline;
+	exports.UNGROUPED = UNGROUPED;
 	exports.timeline = timeline;
 
 }));
