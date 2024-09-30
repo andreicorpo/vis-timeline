@@ -15,6 +15,7 @@
 //                 Sam Welek <https://github.com/tiberiushunter>
 //                 Slaven Tomac <https://github.com/slavede>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+import { UNGROUPED } from "../lib/entry-esnext";
 
 import { DataInterface, DataSet, DataView } from 'vis-data';
 export type DataInterfaceDataGroup = DataInterface<DataGroup, 'id'>;
@@ -811,3 +812,6 @@ export type EasingFunction =
   'easeInQuint' |
   'easeOutQuint' |
   'easeInOutQuint';
+
+export type UngroupedValue = "__ungrouped__";
+export const UNGROUPED: UngroupedValue = UNGROUPED;
