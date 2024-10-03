@@ -15,9 +15,9 @@ npm-debug.log
 .commits.tmp
 .nyc_output/
 /coverage/
-/declarations/
 /dist/
 # Commenting this out to be able to build necessary built files
+# /declarations/
 # /esnext/
 # /styles/
 /examples/graph2d-generated/
