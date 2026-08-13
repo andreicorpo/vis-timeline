@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T10:17:51.035Z
+ * @date    2026-08-13T10:53:35.124Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -5583,6 +5583,9 @@ class Item {
 
     this.setSelectability(data);
 
+    // changed data invalidates the pan-epoch position cache
+    this._panEpochId = null;
+
     if (this.parent) {
       this.parent.stackDirty = true;
     }
@@ -6385,26 +6388,51 @@ class RangeItem extends Item {
    * @Override
    */
   repositionX(limitSize) {
+    const itemSet = this.parent && this.parent.itemSet;
+    const panEpochId = itemSet ? itemSet._panEpochId : undefined;
+
+    // Pan fast path: while the pan epoch is unchanged (pure horizontal
+    // translation, applied as a transform on the item containers) the
+    // DOM position of an already-placed item is invariant, so the whole
+    // recomputation and style write can be skipped.
+    if (
+      limitSize === undefined &&
+      panEpochId !== undefined &&
+      this._panEpochId === panEpochId
+    ) {
+      return;
+    }
+
+    const panOffset =
+      panEpochId !== undefined && itemSet._panOffsetPx ? itemSet._panOffsetPx : 0;
+
     const parentWidth = this.parent.width;
-    let start = this.conversion.toScreen(this.data.start);
-    let end = this.conversion.toScreen(this.data.end);
+    let start = this.conversion.toScreen(this.data.start) + panOffset;
+    let end = this.conversion.toScreen(this.data.end) + panOffset;
     const align =
       this.data.align === undefined ? this.options.align : this.data.align;
     let contentStartPosition;
     let contentWidth;
 
     // limit the width of the range, as browsers cannot draw very wide divs
-    // unless limitSize: false is explicitly set in item data
+    // unless limitSize: false is explicitly set in item data.
+    // The bounds are three viewport widths wide so that clamped items stay
+    // correct over a whole pan epoch (the epoch resets after one viewport
+    // width of panning).
     if (
       this.data.limitSize !== false &&
       (limitSize === undefined || limitSize === true)
     ) {
-      if (start < -parentWidth) {
-        start = -parentWidth;
+      if (start < -3 * parentWidth) {
+        start = -3 * parentWidth;
       }
-      if (end > 2 * parentWidth) {
-        end = 2 * parentWidth;
+      if (end > 4 * parentWidth) {
+        end = 4 * parentWidth;
       }
+    }
+
+    if (limitSize === undefined) {
+      this._panEpochId = panEpochId;
     }
 
     //round to 3 decimals to compensate floating-point values rounding
@@ -7173,7 +7201,9 @@ class BoxItem extends Item {
    * @Override
    */
   repositionX() {
-    const start = this.conversion.toScreen(this.data.start);
+    const itemSet = this.parent && this.parent.itemSet;
+    const panOffset = (itemSet && itemSet._panOffsetPx) || 0;
+    const start = this.conversion.toScreen(this.data.start) + panOffset;
     const align =
       this.data.align === undefined ? this.options.align : this.data.align;
     const lineWidth = this.props.line.width;
@@ -8222,7 +8252,9 @@ class PointItem extends Item {
    * @Override
    */
   repositionX() {
-    const start = this.conversion.toScreen(this.data.start);
+    const itemSet = this.parent && this.parent.itemSet;
+    const panOffset = (itemSet && itemSet._panOffsetPx) || 0;
+    const start = this.conversion.toScreen(this.data.start) + panOffset;
 
     this.pointX = start;
     if (this.options.rtl) {
@@ -11184,6 +11216,65 @@ class ItemSet extends Component {
   }
 
   /**
+   * Maintain the pan "epoch" that makes horizontal panning cheap. While the
+   * zoom scale is unchanged, panning is a pure translation: instead of
+   * repositioning every item on every frame, the translation is applied as
+   * a single transform on the item containers and items keep the DOM
+   * position computed against the epoch start (see Item#repositionX).
+   * The epoch resets on zoom/resize (scale change) and after one viewport
+   * width of panning (so that width-limited items stay valid).
+   * @param {{start: number, end: number}} range visible range
+   * @param {number} centerContainerWidth width of the center panel in pixels
+   * @private
+   */
+  _updatePanEpoch(range, centerContainerWidth) {
+    const span = range.end - range.start;
+    // must be the exact scale used by the toScreen conversion
+    // (Core._toScreen uses props.center.width), or items placed in earlier
+    // frames of the epoch would drift relative to the container transform
+    const conversionWidth = this.body.domProps.center.width;
+    const scale = span > 0 ? conversionWidth / span : 0;
+    const fastPathUsable =
+      !this.options.rtl &&
+      !(this.options.cluster && this.options.cluster !== false) &&
+      !(this.body.hiddenDates && this.body.hiddenDates.length > 0) &&
+      scale > 0;
+
+    let panOffsetPx = 0;
+    if (!fastPathUsable) {
+      // fall back to upstream behaviour: items reposition on every redraw
+      this._panEpochStart = null;
+      this._panEpochScale = null;
+      this._panEpochId = (this._panEpochId || 0) + 1;
+    } else if (
+      this._panEpochStart == null ||
+      this._panEpochScale !== scale ||
+      Math.abs((range.start - this._panEpochStart) * scale) >
+        centerContainerWidth
+    ) {
+      // new epoch: rebase and force one full repositioning pass
+      this._panEpochStart = range.start;
+      this._panEpochScale = scale;
+      this._panEpochId = (this._panEpochId || 0) + 1;
+    } else {
+      panOffsetPx = (range.start - this._panEpochStart) * scale;
+    }
+    this._panOffsetPx = panOffsetPx;
+
+    const transform = `translateX(${-panOffsetPx}px)`;
+    if (this._lastPanTransform !== transform) {
+      this._lastPanTransform = transform;
+      this.dom.foreground.style.transform = transform;
+      this.dom.background.style.transform = transform;
+      this.dom.axis.style.transform = transform;
+      const ungroupedGroup = this.groups[UNGROUPED$2];
+      if (ungroupedGroup && ungroupedGroup.dom.ungrouped) {
+        ungroupedGroup.dom.ungrouped.style.transform = transform;
+      }
+    }
+  }
+
+  /**
    * Repaint the component
    * @return {boolean} Returns true if the component is resized
    */
@@ -11225,6 +11316,8 @@ class ItemSet extends Component {
       this._groupOffsetsDirty = true;
     }
     this._groupHeightsChangedInPass = false;
+
+    this._updatePanEpoch(range, centerContainerWidth);
 
     // check whether zoomed (in that case we need to re-stack everything)
     // TODO: would be nicer to get this as a trigger from Range
