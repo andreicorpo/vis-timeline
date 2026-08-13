@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T10:53:35.124Z
+ * @date    2026-08-13T11:09:18.087Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1217,6 +1217,13 @@ class Group {
     foreground["vis-group"] = this;
     this.dom.foreground = foreground;
 
+    // Items live in a wrapper so horizontal panning can be applied as a
+    // transform on the wrapper without moving the group chrome itself
+    // (row striping, borders), which must stay fixed.
+    this.dom.itemsContainer = document.createElement("div");
+    this.dom.itemsContainer.className = "vis-items-container";
+    foreground.appendChild(this.dom.itemsContainer);
+
     const ungrouped = document.createElement("div");
     ungrouped.className = "vis-group";
     ungrouped["vis-group"] = this;
@@ -1224,6 +1231,10 @@ class Group {
 
     this.dom.background = document.createElement("div");
     this.dom.background.className = "vis-group";
+
+    this.dom.backgroundItemsContainer = document.createElement("div");
+    this.dom.backgroundItemsContainer.className = "vis-items-container";
+    this.dom.background.appendChild(this.dom.backgroundItemsContainer);
 
     this.dom.axis = document.createElement("div");
     this.dom.axis.className = "vis-group";
@@ -1924,6 +1935,15 @@ class Group {
   show() {
     if (!this.dom.label.parentNode) {
       this.itemSet.dom.labelSet.appendChild(this.dom.label);
+    }
+
+    // apply the current pan transform to the item wrappers (see
+    // ItemSet#_updatePanEpoch)
+    const panTransform = this.itemSet._lastPanTransform;
+    if (panTransform !== undefined) {
+      this.dom.itemsContainer.style.transform = panTransform;
+      this.dom.backgroundItemsContainer.style.transform = panTransform;
+      this.dom.ungrouped.style.transform = panTransform;
     }
 
     // The ungrouped group is not added to the itemSet's foreground/background
@@ -6222,7 +6242,7 @@ class RangeItem extends Item {
       const container =
         this.parent.groupId === ReservedGroupIds$2.UNGROUPED
           ? this.parent.dom.ungrouped
-          : this.parent.dom.foreground;
+          : this.parent.dom.itemsContainer || this.parent.dom.foreground;
       if (!container) {
         throw new Error(
           "Cannot redraw item: parent has no foreground container element",
@@ -6690,7 +6710,7 @@ class BackgroundItem extends Item {
       const container =
         this.parent.groupId === ReservedGroupIds$2.UNGROUPED
           ? this.parent.dom.ungrouped
-          : this.parent.dom.background;
+          : this.parent.dom.backgroundItemsContainer || this.parent.dom.background;
       if (!container) {
         throw new Error(
           "Cannot redraw item: parent has no background container element",
@@ -7201,9 +7221,7 @@ class BoxItem extends Item {
    * @Override
    */
   repositionX() {
-    const itemSet = this.parent && this.parent.itemSet;
-    const panOffset = (itemSet && itemSet._panOffsetPx) || 0;
-    const start = this.conversion.toScreen(this.data.start) + panOffset;
+    const start = this.conversion.toScreen(this.data.start);
     const align =
       this.data.align === undefined ? this.options.align : this.data.align;
     const lineWidth = this.props.line.width;
@@ -8252,9 +8270,7 @@ class PointItem extends Item {
    * @Override
    */
   repositionX() {
-    const itemSet = this.parent && this.parent.itemSet;
-    const panOffset = (itemSet && itemSet._panOffsetPx) || 0;
-    const start = this.conversion.toScreen(this.data.start) + panOffset;
+    const start = this.conversion.toScreen(this.data.start);
 
     this.pointX = start;
     if (this.options.rtl) {
@@ -11264,13 +11280,21 @@ class ItemSet extends Component {
     const transform = `translateX(${-panOffsetPx}px)`;
     if (this._lastPanTransform !== transform) {
       this._lastPanTransform = transform;
-      this.dom.foreground.style.transform = transform;
-      this.dom.background.style.transform = transform;
-      this.dom.axis.style.transform = transform;
-      const ungroupedGroup = this.groups[UNGROUPED$2];
-      if (ungroupedGroup && ungroupedGroup.dom.ungrouped) {
-        ungroupedGroup.dom.ungrouped.style.transform = transform;
-      }
+      // The transform goes on the per-group item wrappers, not on the
+      // itemset containers: the group divs carry the row striping and
+      // borders, which must not move while panning. (Box and point items
+      // are not wrapped; they keep repositioning on every redraw.)
+      availableUtils.forEach(this.groups, (group) => {
+        if (group.dom.itemsContainer) {
+          group.dom.itemsContainer.style.transform = transform;
+        }
+        if (group.dom.backgroundItemsContainer) {
+          group.dom.backgroundItemsContainer.style.transform = transform;
+        }
+        if (group.dom.ungrouped) {
+          group.dom.ungrouped.style.transform = transform;
+        }
+      });
     }
   }
 
