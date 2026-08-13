@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T13:12:32.620Z
+ * @date    2026-08-13T14:56:36.044Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1257,6 +1257,9 @@ class Group {
   setData(data) {
     if (this.itemSet.groupTouchParams.isDragging) return;
 
+    // new content can change the label size; re-measure on the next redraw
+    this._labelSizeDirty = true;
+
     // update contents
     let content;
     let templateFunction;
@@ -1759,13 +1762,20 @@ class Group {
    */
   _didResize(resized, height) {
     resized = availableUtils.updateProperty(this, "height", height) || resized;
-    // recalculate size of label
-    const labelWidth = this.dom.inner.clientWidth;
-    const labelHeight = this.dom.inner.clientHeight;
-    resized =
-      availableUtils.updateProperty(this.props.label, "width", labelWidth) || resized;
-    resized =
-      availableUtils.updateProperty(this.props.label, "height", labelHeight) || resized;
+    // Reading the label size forces a layout (this runs for every group on
+    // every redraw, and the axis repaint earlier in the frame dirties the
+    // layout), yet the label can only change size when its content changed
+    // (setData marks the group) or when group geometry changed (tracked by
+    // the itemSet's offsets-dirty protocol). Reuse the cached size otherwise.
+    if (this.itemSet._groupOffsetsDirty !== false || this._labelSizeDirty) {
+      this._labelSizeDirty = false;
+      const labelWidth = this.dom.inner.clientWidth;
+      const labelHeight = this.dom.inner.clientHeight;
+      resized =
+        availableUtils.updateProperty(this.props.label, "width", labelWidth) || resized;
+      resized =
+        availableUtils.updateProperty(this.props.label, "height", labelHeight) || resized;
+    }
     return resized;
   }
 
@@ -1832,14 +1842,29 @@ class Group {
     if (this.groupId !== UNGROUPED$4 || !this.itemSet.options.showUngroupedItems) {
       return null;
     }
-    const panel = this.itemSet.dom.ungrouped;
+    const itemSet = this.itemSet;
+    const panel = itemSet.dom.ungrouped;
     if (!panel || !panel.parentNode) {
       return null;
     }
+    // scrollTop/clientHeight force a layout when read during a redraw, so
+    // they are cached: the panel scroll listener (ItemSet) refreshes the
+    // cache when the user scrolls, and geometry changes are covered by the
+    // offsets-dirty protocol.
+    if (
+      itemSet._ungroupedViewport == null ||
+      itemSet._groupOffsetsDirty !== false
+    ) {
+      itemSet._ungroupedViewport = {
+        top: panel.scrollTop,
+        height: panel.clientHeight,
+      };
+    }
+    const viewport = itemSet._ungroupedViewport;
     const buffer = 150;
     return {
-      top: panel.scrollTop - buffer,
-      bottom: panel.scrollTop + panel.clientHeight + buffer,
+      top: viewport.top - buffer,
+      bottom: viewport.top + viewport.height + buffer,
     };
   }
 
@@ -6821,6 +6846,7 @@ class BackgroundItem extends Item {
       },
     };
     this.overflow = false; // if contents can overflow (css styling), this flag is set to true
+    this._usesContainerLocalCoordinates = false;
 
     // validate data
     if (data) {
@@ -6883,15 +6909,22 @@ class BackgroundItem extends Item {
       throw new Error("Cannot redraw item: no parent attached");
     }
     if (!this.dom.box.parentNode) {
+      const backgroundItemsContainer = this.parent.dom.backgroundItemsContainer;
       const container =
         this.parent.groupId === ReservedGroupIds$2.UNGROUPED
           ? this.parent.dom.ungrouped
-          : this.parent.dom.backgroundItemsContainer || this.parent.dom.background;
+          : backgroundItemsContainer || this.parent.dom.background;
       if (!container) {
         throw new Error(
           "Cannot redraw item: parent has no background container element",
         );
       }
+      // A transformed item container is the containing block for absolute
+      // children, so vertical positions inside it are container-local. Cache
+      // the coordinate mode on attachment to avoid DOM reads during redraws.
+      this._usesContainerLocalCoordinates =
+        container === backgroundItemsContainer ||
+        container === this.parent.dom.ungrouped;
       container.appendChild(this.dom.box);
     }
     this.displayed = true;
@@ -7004,6 +7037,7 @@ class BackgroundItem extends Item {
   repositionY() {
     let height;
     const orientation = this.options.orientation.item;
+    const parentTop = this._usesContainerLocalCoordinates ? 0 : this.parent.top;
 
     // special positioning for subgroups
     if (this.data.subgroup !== undefined) {
@@ -7013,9 +7047,9 @@ class BackgroundItem extends Item {
       this.dom.box.style.height = `${this.parent.subgroups[itemSubgroup].height}px`;
 
       if (orientation == "top") {
-        this.dom.box.style.top = `${this.parent.top + this.parent.subgroups[itemSubgroup].top}px`;
+        this.dom.box.style.top = `${parentTop + this.parent.subgroups[itemSubgroup].top}px`;
       } else {
-        this.dom.box.style.top = `${this.parent.top + this.parent.height - this.parent.subgroups[itemSubgroup].top - this.parent.subgroups[itemSubgroup].height}px`;
+        this.dom.box.style.top = `${parentTop + this.parent.height - this.parent.subgroups[itemSubgroup].top - this.parent.subgroups[itemSubgroup].height}px`;
       }
       this.dom.box.style.bottom = "";
     }
@@ -7034,7 +7068,7 @@ class BackgroundItem extends Item {
       } else {
         height = this.parent.height;
         // same alignment for items when orientation is top or bottom
-        this.dom.box.style.top = `${this.parent.top}px`;
+        this.dom.box.style.top = `${parentTop}px`;
         this.dom.box.style.bottom = "";
       }
     }
@@ -11201,6 +11235,15 @@ class ItemSet extends Component {
             scheduled = true;
             requestAnimationFrame(() => {
               scheduled = false;
+              // refresh the cached panel viewport used by the standby
+              // virtualization band (Group._computeVerticalBand) - reading
+              // it during the redraw itself would force a layout per frame
+              if (this.dom.ungrouped) {
+                this._ungroupedViewport = {
+                  top: this.dom.ungrouped.scrollTop,
+                  height: this.dom.ungrouped.clientHeight,
+                };
+              }
               this.body.emitter.emit("_change");
             });
           }
@@ -15213,6 +15256,10 @@ class TimeAxis extends Component {
           moment$2.lang(options.locale);
         }
       }
+
+      // options can change the label format/formatting timezone: the
+      // painted axis is stale, repaint on the next redraw
+      this._axisEpoch = null;
     }
   }
 
@@ -15222,9 +15269,27 @@ class TimeAxis extends Component {
   _create() {
     this.dom.foreground = document.createElement("div");
     this.dom.background = document.createElement("div");
+    this.dom.foregroundContent = document.createElement("div");
+    this.dom.backgroundContent = document.createElement("div");
 
     this.dom.foreground.className = "vis-time-axis vis-foreground";
     this.dom.background.className = "vis-time-axis vis-background";
+
+    // Keep the clipping containers fixed and pan inner layers. Transforming
+    // an overflow-hidden container moves its clipping rectangle too, leaving
+    // an empty strip at the viewport edge even when overscan was painted.
+    for (const content of [
+      this.dom.foregroundContent,
+      this.dom.backgroundContent,
+    ]) {
+      content.style.position = "absolute";
+      content.style.top = "0";
+      content.style.left = "0";
+      content.style.width = "100%";
+      content.style.height = "100%";
+    }
+    this.dom.foreground.appendChild(this.dom.foregroundContent);
+    this.dom.background.appendChild(this.dom.backgroundContent);
   }
 
   /**
@@ -15258,14 +15323,62 @@ class TimeAxis extends Component {
         : this.body.dom.bottom;
     const parentChanged = foreground.parentNode !== parent;
 
-    // calculate character width and height
-    this._calculateCharSize();
-
-    // TODO: recalculate sizes only needed when parent is resized or options is changed
     const showMinorLabels =
       this.options.showMinorLabels && this.options.orientation.axis !== "none";
     const showMajorLabels =
       this.options.showMajorLabels && this.options.orientation.axis !== "none";
+
+    // Pan fast path: while the zoom scale is unchanged, panning is a pure
+    // translation of the axis. Labels and grid lines were painted over one
+    // extra viewport width on each side (see _repaintLabels), so as long as
+    // the pan stays within that window the whole repaint - step iteration,
+    // label formatting, innerHTML writes, char measurement, and the
+    // detach/reattach of the axis DOM (which dirtied layout for every
+    // component redrawn after the axis, every frame) - can be replaced by
+    // one transform write. Sizes below are derived from cached values only.
+    const range = this.body.range;
+    const span = range.end - range.start;
+    const centerWidth = this.body.domProps.center.width;
+    const scale = span > 0 ? centerWidth / span : 0;
+    const epochUsable =
+      !this.options.rtl &&
+      !(this.body.hiddenDates && this.body.hiddenDates.length > 0) &&
+      scale > 0 &&
+      !parentChanged;
+
+    // the painted labels carry date-dependent classes (vis-today etc.), so
+    // an epoch is only trusted for a bounded time on an otherwise idle axis
+    const AXIS_EPOCH_TTL = 10 * 60 * 1000;
+    if (
+      epochUsable &&
+      this._axisEpoch &&
+      this._axisEpoch.scale === scale &&
+      Date.now() - this._axisEpoch.paintedAt < AXIS_EPOCH_TTL
+    ) {
+      const minorLabelHeight = showMinorLabels ? props.minorCharHeight : 0;
+      const majorLabelHeight = showMajorLabels ? props.majorCharHeight : 0;
+      const minorLineHeight =
+        this.body.domProps.root.height -
+        majorLabelHeight -
+        (this.options.orientation.axis == "top"
+          ? this.body.domProps.bottom.height
+          : this.body.domProps.top.height);
+      const panOffsetPx = (range.start - this._axisEpoch.start) * scale;
+      if (
+        Math.abs(panOffsetPx) <= centerWidth &&
+        minorLabelHeight === props.minorLabelHeight &&
+        majorLabelHeight === props.majorLabelHeight &&
+        minorLineHeight === props.minorLineHeight
+      ) {
+        this._applyAxisPan(panOffsetPx);
+        return false;
+      }
+    }
+
+    // full repaint
+
+    // calculate character width and height
+    this._calculateCharSize();
 
     // determine the width and height of the elemens for the axis
     props.minorLabelHeight = showMinorLabels ? props.minorCharHeight : 0;
@@ -15291,7 +15404,12 @@ class TimeAxis extends Component {
 
     foreground.style.height = `${this.props.height}px`;
 
-    this._repaintLabels();
+    // paint one viewport of overscan on each side when the axis can be
+    // pan-translated, so subsequent pan frames skip the repaint entirely
+    this._repaintLabels(epochUsable ? span : 0);
+    this._axisEpoch = epochUsable
+      ? { start: range.start, scale, paintedAt: Date.now() }
+      : null;
 
     // put DOM online again (at the same place)
     if (foregroundNextSibling) {
@@ -15307,19 +15425,105 @@ class TimeAxis extends Component {
     } else {
       this.body.dom.backgroundVertical.appendChild(background);
     }
+
+    this._applyAxisPan(0);
+
     return this._isResized() || parentChanged;
   }
 
   /**
-   * Repaint major and minor text labels and vertical grid lines
+   * Apply a pan offset to the painted axis: the labels and grid lines keep
+   * their epoch positions and the containers get a single translateX. The
+   * sticky left major label (the date pinned to the viewport edge) is the
+   * only element repositioned per frame.
+   * @param {number} panOffsetPx accumulated pan distance since the epoch start
    * @private
    */
-  _repaintLabels() {
+  _applyAxisPan(panOffsetPx) {
+    const transform = `translateX(${-panOffsetPx}px)`;
+    if (this._lastAxisTransform !== transform) {
+      this._lastAxisTransform = transform;
+      this.dom.foregroundContent.style.transform = transform;
+      this.dom.backgroundContent.style.transform = transform;
+    }
+    this._updateStickyMajor(panOffsetPx);
+  }
+
+  /**
+   * Keep the left-edge major label (the current date) pinned to the visible
+   * left edge of the axis, showing it only while the first real major label
+   * is too far right to serve that purpose (mirrors the upstream behaviour
+   * that painted this label at x=0 on every repaint).
+   * @param {number} panOffsetPx accumulated pan distance since the epoch start
+   * @private
+   */
+  _updateStickyMajor(panOffsetPx) {
+    let sticky = this.dom.stickyMajor;
+    if (!this.options.showMajorLabels || !this.step) {
+      if (sticky && sticky.style.display !== "none") {
+        sticky.style.display = "none";
+      }
+      return;
+    }
+    if (!sticky) {
+      const content = document.createElement("div");
+      sticky = document.createElement("div");
+      sticky.appendChild(content);
+      sticky.className = "vis-text vis-major";
+      this.dom.foreground.appendChild(sticky);
+      this.dom.stickyMajor = sticky;
+    }
+
+    const leftTime = this.body.util.toTime(0);
+    const text = this.step.getLabelMajor(leftTime);
+    const widthText = text.length * (this.props.majorCharWidth || 10) + 10;
+
+    // first major label at the right of the viewport's left edge
+    let xFirstMajorLabel = undefined;
+    const majorXs = this._majorLabelXs || [];
+    for (let i = 0; i < majorXs.length; i++) {
+      const xView = majorXs[i] - panOffsetPx;
+      if (xView > 0) {
+        xFirstMajorLabel = xView;
+        break;
+      }
+    }
+
+    const show = xFirstMajorLabel == undefined || widthText < xFirstMajorLabel;
+    if (!show) {
+      if (sticky.style.display !== "none") {
+        sticky.style.display = "none";
+      }
+      return;
+    }
+    if (sticky.style.display === "none") {
+      sticky.style.display = "";
+    }
+    if (sticky._visText !== text) {
+      sticky._visText = text;
+      sticky.childNodes[0].innerHTML = availableUtils.xss(text);
+    }
+    const y =
+      this.options.orientation.axis == "top" ? 0 : this.props.minorLabelHeight;
+    // Sticky labels live outside the translated content layer, so x=0 pins
+    // the label to the visible left edge without a counter-translation.
+    this._setXY(sticky, 0, y);
+  }
+
+  /**
+   * Repaint major and minor text labels and vertical grid lines
+   * @param {number} [overscan=0] extra time (in ms) to paint on both sides
+   *                              of the visible range, so that pan frames
+   *                              can translate the axis instead of
+   *                              repainting it
+   * @private
+   */
+  _repaintLabels(overscan = 0) {
     const orientation = this.options.orientation.axis;
 
     // calculate range and step (step such that we have space for 7 characters per label)
-    const start = availableUtils.convert(this.body.range.start, "Number");
-    const end = availableUtils.convert(this.body.range.end, "Number");
+    const start = availableUtils.convert(this.body.range.start - overscan, "Number");
+    const end = availableUtils.convert(this.body.range.end + overscan, "Number");
     const timeLabelsize = this.body.util
       .toTime((this.props.minorCharWidth || 10) * this.options.maxMinorChars)
       .valueOf();
@@ -15369,10 +15573,13 @@ class TimeAxis extends Component {
     let width = 0;
     let prevWidth;
     let line;
-    let xFirstMajorLabel = undefined;
     let count = 0;
     const MAX = 1000;
     let className;
+
+    // epoch x positions of the painted major labels, for the sticky
+    // left-edge label logic (_updateStickyMajor)
+    this._majorLabelXs = [];
 
     step.start();
     next = step.getCurrent();
@@ -15412,10 +15619,10 @@ class TimeAxis extends Component {
       }
 
       if (isMajor && this.options.showMajorLabels) {
-        if (x > 0) {
-          if (xFirstMajorLabel == undefined) {
-            xFirstMajorLabel = x;
-          }
+        // with overscan, offscreen majors are painted too: they become
+        // visible when the axis is pan-translated
+        if (overscan > 0 || x > 0) {
+          this._majorLabelXs.push(x);
           label = this._repaintMajorText(
             x,
             step.getLabelMajor(current),
@@ -15444,17 +15651,9 @@ class TimeAxis extends Component {
       warnedForOverflow = true;
     }
 
-    // create a major label on the left when needed
-    if (this.options.showMajorLabels) {
-      const leftTime = this.body.util.toTime(0); // upper bound estimation
-      const leftText = step.getLabelMajor(leftTime);
-      const widthText =
-        leftText.length * (this.props.majorCharWidth || 10) + 10;
-
-      if (xFirstMajorLabel == undefined || widthText < xFirstMajorLabel) {
-        this._repaintMajorText(0, leftText, orientation, className);
-      }
-    }
+    // NOTE: the major label pinned to the left edge is handled by
+    // _updateStickyMajor (called through _applyAxisPan), which keeps it in
+    // place per pan frame instead of repainting the axis.
 
     // Cleanup leftover DOM elements from the redundant list
     availableUtils.forEach(this.dom.redundant, (arr) => {
@@ -15485,7 +15684,7 @@ class TimeAxis extends Component {
       const content = document.createTextNode("");
       label = document.createElement("div");
       label.appendChild(content);
-      this.dom.foreground.appendChild(label);
+      this.dom.foregroundContent.appendChild(label);
     }
     this.dom.minorTexts.push(label);
     label.innerHTML = availableUtils.xss(text);
@@ -15517,7 +15716,7 @@ class TimeAxis extends Component {
       const content = document.createElement("div");
       label = document.createElement("div");
       label.appendChild(content);
-      this.dom.foreground.appendChild(label);
+      this.dom.foregroundContent.appendChild(label);
     }
 
     label.childNodes[0].innerHTML = availableUtils.xss(text);
@@ -15559,7 +15758,7 @@ class TimeAxis extends Component {
     if (!line) {
       // create vertical line
       line = document.createElement("div");
-      this.dom.background.appendChild(line);
+      this.dom.backgroundContent.appendChild(line);
     }
     this.dom.lines.push(line);
 
@@ -15595,7 +15794,7 @@ class TimeAxis extends Component {
     if (!line) {
       // create vertical line
       line = document.createElement("div");
-      this.dom.background.appendChild(line);
+      this.dom.backgroundContent.appendChild(line);
     }
     this.dom.lines.push(line);
 
