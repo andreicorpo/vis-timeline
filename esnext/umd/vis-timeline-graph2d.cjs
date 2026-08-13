@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T11:09:18.087Z
+ * @date    2026-08-13T11:12:22.647Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1384,6 +1384,13 @@ class Group {
    * @returns {boolean}
    */
   _didMarkerHeightChange() {
+    // The marker detects the timeline container being attached or made
+    // visible - transitions that always change the container geometry,
+    // which the itemSet tracks. Skip the forced-layout read otherwise:
+    // it was the last remaining per-frame DOM read during panning.
+    if (this.itemSet._groupOffsetsDirty === false) {
+      return false;
+    }
     const markerHeight = this.dom.marker.clientHeight;
     if (markerHeight != this.lastMarkerHeight) {
       this.lastMarkerHeight = markerHeight;
