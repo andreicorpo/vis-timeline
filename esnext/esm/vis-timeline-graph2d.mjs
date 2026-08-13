@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T12:49:47.466Z
+ * @date    2026-08-13T13:12:32.620Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1484,6 +1484,24 @@ class Group {
    * @private
    */
   /**
+   * Defer this group's restack to the settle redraw of a fast pan. Items
+   * that entered without a stacked position yet get a provisional top so
+   * they can paint. Returns true (always defers when called).
+   * @return {boolean} deferred
+   * @private
+   */
+  _deferRestack() {
+    for (let i = 0; i < this.visibleItems.length; i++) {
+      if (this.visibleItems[i].top == null) {
+        this.visibleItems[i].top = 0;
+      }
+    }
+    this._restackDeferred = true; // consolidated restack on the settle redraw
+    this.itemSet._anyDeferredRestacks = true;
+    return true;
+  }
+
+  /**
    * Whether the currently visible items are exactly the items of the last
    * real stacking pass (element-wise comparison, allocation free).
    * @return {boolean} unchanged
@@ -1512,6 +1530,7 @@ class Group {
     this._lastStackSpan = stackSpan;
     this._lastStackWidth = this.width;
     this._lastStackedItems = this.visibleItems.slice();
+    this._restackDeferred = false;
   }
 
   _redrawItems(forceRestack, lastIsVisible, margin, range) {
@@ -1527,6 +1546,18 @@ class Group {
     // alone is not enough, as items can enter and leave in the same pan step.
     const stackSpan = range.end - range.start;
     const stackContextUnchanged =
+      !this.stackDirty &&
+      !this._restackDeferred &&
+      !(this.isVisible && !lastIsVisible) &&
+      this._lastStackSpan === stackSpan &&
+      this._lastStackWidth === this.width;
+
+    // While the pan is fast, membership changes do not trigger a restack:
+    // the layout is unreadable at fling speed, and one consolidated
+    // restack lands on the settle redraw (see ItemSet). Entering items
+    // are given a provisional top so they paint until then.
+    const deferRestack =
+      this.itemSet._fastPanActive === true &&
       !this.stackDirty &&
       !(this.isVisible && !lastIsVisible) &&
       this._lastStackSpan === stackSpan &&
@@ -1633,7 +1664,10 @@ class Group {
           this._updateSubGroupHeights(margin);
           // order all items and force a restacking
           // order all items outside clusters and force a restacking
-          if (stackContextUnchanged && this._stackMembershipUnchanged()) ; else {
+          if (
+            (stackContextUnchanged && this._stackMembershipUnchanged()) ||
+            (deferRestack && this._deferRestack())
+          ) ; else {
             const customOrderedItems = this.visibleItems
               .slice()
               .filter(
@@ -1665,7 +1699,10 @@ class Group {
               this.subgroups,
             );
           } else {
-            if (stackContextUnchanged && this._stackMembershipUnchanged()) ; else {
+            if (
+              (stackContextUnchanged && this._stackMembershipUnchanged()) ||
+              (deferRestack && this._deferRestack())
+            ) ; else {
               // TODO: ugly way to access options...
               this.shouldBailStackItems = stack(
                 this.visibleItems,
@@ -11518,6 +11555,32 @@ class ItemSet extends Component {
       options.stackSubgroups != this.lastStackSubgroups;
     const forceRestack =
       zoomed || scrolled || changedStackOption || changedStackSubgroupsOption;
+
+    // During fast pans, restacking is deferred: the stacked layout cannot
+    // be read at fling speed anyway, and the sticky standby window would
+    // otherwise refresh (and restack hundreds of items) every few frames.
+    // A settle kicker issues one trailing redraw so the deferred restack
+    // always lands right after the pan stops.
+    const panScale =
+      visibleInterval > 0
+        ? this.body.domProps.center.width / visibleInterval
+        : 0;
+    const panPxPerRedraw =
+      Math.abs(range.start - this.lastRangeStart) * panScale;
+    this._fastPanActive =
+      scrolled && !zoomed && panPxPerRedraw > centerContainerWidth / 16;
+    if (this._fastPanActive) {
+      const token = (this._fastPanToken = (this._fastPanToken || 0) + 1);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (this._fastPanToken === token && this._anyDeferredRestacks) {
+            this.body.emitter.emit("_change");
+          }
+        });
+      });
+    }
+    this._anyDeferredRestacks = false;
+
     this.lastVisibleInterval = visibleInterval;
     this.lastRangeStart = range.start;
     this.lastStack = options.stack;
