@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T09:14:10.093Z
+ * @date    2026-08-13T10:07:37.006Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -830,7 +830,8 @@ function performStacking(
     }
     getItemEnd = (item) =>
       getItemStart(item) +
-      (item.dom.box.clientWidth || item.width) +
+      (item.renderedBoxWidth ??
+        ((item.dom.box && item.dom.box.clientWidth) || item.width)) +
       margins.horizontal;
   }
 
@@ -1467,6 +1468,20 @@ class Group {
     const restack =
       forceRestack || this.stackDirty || (this.isVisible && !lastIsVisible);
 
+    // The ungrouped (standby) panel keeps every item visible, so during a
+    // pure horizontal pan (zoom scale, group width, and item set unchanged)
+    // every item shifts by the same pixel delta and the vertical stacking
+    // cannot change. Skip the expensive restack in that case and only
+    // reposition items horizontally.
+    const stackSpan = range.end - range.start;
+    const translationOnly =
+      this.groupId === UNGROUPED$4 &&
+      !this.stackDirty &&
+      !(this.isVisible && !lastIsVisible) &&
+      this._lastStackSpan === stackSpan &&
+      this._lastStackWidth === this.width &&
+      this._lastStackCount === this.visibleItems.length;
+
     // if restacking, reposition visible items vertically
     if (restack) {
       const orderedItems = {
@@ -1535,14 +1550,16 @@ class Group {
         const me = this;
         if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
           // Order the items within each subgroup
-          const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup(
-            this.itemSet.options.order,
-          );
-          stackSubgroupsWithInnerStack(
-            visibleSubgroupsItems,
-            margin,
-            this.subgroups,
-          );
+          if (!translationOnly) {
+            const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup(
+              this.itemSet.options.order,
+            );
+            stackSubgroupsWithInnerStack(
+              visibleSubgroupsItems,
+              margin,
+              this.subgroups,
+            );
+          }
           this.visibleItems = getVisibleItems();
           this._updateSubGroupHeights(margin);
         } else {
@@ -1550,20 +1567,22 @@ class Group {
           this._updateSubGroupHeights(margin);
           // order all items and force a restacking
           // order all items outside clusters and force a restacking
-          const customOrderedItems = this.visibleItems
-            .slice()
-            .filter(
-              (item) => item.isCluster || (!item.isCluster && !item.cluster),
-            )
-            .toSorted((a, b) => {
-              return me.itemSet.options.order(a.data, b.data);
-            });
-          this.shouldBailStackItems = stack(
-            customOrderedItems,
-            margin,
-            true,
-            this._shouldBailItemsRedraw.bind(this),
-          );
+          if (!translationOnly) {
+            const customOrderedItems = this.visibleItems
+              .slice()
+              .filter(
+                (item) => item.isCluster || (!item.isCluster && !item.cluster),
+              )
+              .toSorted((a, b) => {
+                return me.itemSet.options.order(a.data, b.data);
+              });
+            this.shouldBailStackItems = stack(
+              customOrderedItems,
+              margin,
+              true,
+              this._shouldBailItemsRedraw.bind(this),
+            );
+          }
         }
       } else {
         // no custom order function, lazy stacking
@@ -1571,7 +1590,7 @@ class Group {
         this._updateSubGroupHeights(margin);
 
         if (this.itemSet.options.stack) {
-          if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
+          if (translationOnly) ; else if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
             const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup();
             stackSubgroupsWithInnerStack(
               visibleSubgroupsItems,
@@ -1620,6 +1639,11 @@ class Group {
 
       if (this.shouldBailStackItems) {
         this.itemSet.body.emitter.emit("destroyTimeline");
+      }
+      if (this.groupId === UNGROUPED$4) {
+        this._lastStackSpan = stackSpan;
+        this._lastStackWidth = this.width;
+        this._lastStackCount = this.visibleItems.length;
       }
       this.stackDirty = false;
     }
@@ -6340,6 +6364,11 @@ class RangeItem extends Item {
     //round to 3 decimals to compensate floating-point values rounding
     const boxWidth = Math.max(Math.round((end - start) * 1000) / 1000, 1);
 
+    // The width the box is rendered at (what clientWidth would report).
+    // Stacking uses this instead of reading clientWidth from the DOM, which
+    // would force a layout for every stacked item on every redraw.
+    this.renderedBoxWidth = boxWidth;
+
     if (this.overflow) {
       if (this.options.rtl) {
         this.right = start;
@@ -10445,6 +10474,7 @@ class ItemSet extends Component {
     // create foreground panel
     const ungrouped = document.createElement("div");
     ungrouped.className = "vis-ungrouped vis-foreground";
+    ungrouped.style.overflowX = "hidden";
     this.dom.ungrouped = ungrouped;
 
     const ungroupedHeader = document.createElement("div");
@@ -11111,7 +11141,6 @@ class ItemSet extends Component {
     const orientation = options.orientation.item;
     let resized = false;
     const frame = this.dom.frame;
-    const ungrouped = this.dom.ungrouped;
 
     // recalculate absolute position (before redrawing groups)
     this.props.top =
@@ -11124,7 +11153,6 @@ class ItemSet extends Component {
       this.props.left =
         this.body.domProps.left.width + this.body.domProps.border.left;
     }
-    ungrouped.style.overflowX = "hidden";
 
     // update class name
     frame.className = "vis-itemset";
