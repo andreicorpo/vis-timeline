@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T11:12:22.647Z
+ * @date    2026-08-13T11:31:38.112Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1174,6 +1174,7 @@ class Group {
 
     this.items = {}; // items filtered by groupId of this group
     this.visibleItems = []; // items currently visible in window
+    this.itemVisibilityRange = null; // sticky overscan window (ungrouped group)
     this.itemsInRange = []; // items currently in range
     this.orderedItems = {
       byStart: [],
@@ -2218,6 +2219,7 @@ class Group {
   _updateItemsInRange(orderedItems, oldVisibleItems, range) {
     const visibleItems = [];
     const visibleItemsLookup = {}; // we keep this to quickly look up if an item already exists in the list without using indexOf on visibleItems
+    const visibilityRange = this._getItemVisibilityRange(range);
 
     if (
       !this.isVisible &&
@@ -2232,8 +2234,10 @@ class Group {
     }
 
     const interval = (range.end - range.start) / 4;
-    const lowerBound = range.start - interval;
-    const upperBound = range.end + interval;
+    const lowerBound =
+      this.groupId === UNGROUPED$4 ? visibilityRange.start : range.start - interval;
+    const upperBound =
+      this.groupId === UNGROUPED$4 ? visibilityRange.end : range.end + interval;
 
     // this function is used to do the binary search for items having start date only.
     const startSearchFunction = (value) => {
@@ -2255,7 +2259,7 @@ class Group {
           oldVisibleItems[i],
           visibleItems,
           visibleItemsLookup,
-          range,
+          visibilityRange,
         );
       }
     }
@@ -2283,7 +2287,7 @@ class Group {
         orderedItems.byEnd[i],
         visibleItems,
         visibleItemsLookup,
-        range,
+        visibilityRange,
       );
     }
 
@@ -2396,8 +2400,49 @@ class Group {
    * @param {{start:number, end:number}} range
    * @private
    */
+  _getItemVisibilityRange(range) {
+    if (this.groupId !== UNGROUPED$4) {
+      return range;
+    }
+
+    const interval = range.end - range.start;
+    const overscan = interval / 4;
+    const refreshMargin = overscan / 2;
+    const cachedRange = this.itemVisibilityRange;
+
+    // The standby panel uses a STICKY overscan window: it only moves when
+    // the view approaches its edge. Between refreshes the visible item set
+    // is literally identical from frame to frame, so panning triggers no
+    // show/hide churn and the membership-verified restack skip stays
+    // engaged; without the buffer, an item crossing the window edge would
+    // restack the whole panel on almost every pan step.
+    if (
+      !cachedRange ||
+      cachedRange.interval !== interval ||
+      range.start < cachedRange.start + refreshMargin ||
+      range.end > cachedRange.end - refreshMargin
+    ) {
+      const visibilityRange = Object.create(range);
+      visibilityRange.start = range.start - overscan;
+      visibilityRange.end = range.end + overscan;
+      visibilityRange.interval = interval;
+      this.itemVisibilityRange = visibilityRange;
+    }
+
+    return this.itemVisibilityRange;
+  }
+
+  /**
+   * this function checks if an item is invisible. If it is NOT we make it visible
+   * and add it to the global visible items. If it is, dispose it.
+   *
+   * @param {Item} item
+   * @param {Array<timeline.Item>} visibleItems
+   * @param {{start:number, end:number}} range
+   * @private
+   */
   _checkIfVisible(item, visibleItems, range) {
-    if (item.isVisible(range) || this.groupId === UNGROUPED$4) {
+    if (item.isVisible(this._getItemVisibilityRange(range))) {
       if (!item.displayed) item.show();
       // reposition item horizontally
       item.repositionX();
