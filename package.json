@@ -1,146 +1,21 @@
 {
   "name": "vis-timeline",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Create a fully customizable, interactive timeline with items and ranges.",
+  "keywords": [
+    "chart",
+    "graph",
+    "javascript",
+    "linechart",
+    "timeline",
+    "vis",
+    "visualization"
+  ],
   "homepage": "https://visjs.github.io/vis-timeline/",
-  "license": "(Apache-2.0 OR MIT)",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/visjs/vis-timeline.git"
-  },
   "bugs": {
     "url": "https://github.com/visjs/vis-timeline/issues"
   },
-  "keywords": [
-    "vis",
-    "visualization",
-    "javascript",
-    "chart",
-    "linechart",
-    "timeline",
-    "graph"
-  ],
-  "browser": "peer/umd/vis-timeline-graph2d.min.js",
-  "jsnext": "esnext/esm/vis-timeline-graph2d.js",
-  "main": "peer/umd/vis-timeline-graph2d.js",
-  "module": "peer/esm/vis-timeline-graph2d.js",
-  "types": "declarations/index.d.ts",
-  "files": [
-    "HISTORY.md",
-    "declarations",
-    "dist",
-    "esnext",
-    "peer",
-    "standalone",
-    "styles",
-    "types"
-  ],
-  "scripts": {
-    "test": "mocha --exit --require vis-dev-utils/babel-register",
-    "test-cov": "nyc --reporter=lcov mocha --exit --require vis-dev-utils/babel-register",
-    "build": "cpy \"types/**/*\" \"declarations\" && rollup --bundleConfigAsCjs --config rollup.build.js && rollup --bundleConfigAsCjs --config rollup.config.js",
-    "watch": "rollup --bundleConfigAsCjs --watch --config rollup.build.js",
-    "generate-examples-index": "npm run generate-examples-index:timeline && npm run generate-examples-index:graph2d",
-    "generate-examples-index:timeline": "generate-examples-index --config generate-examples-index-timeline.json",
-    "generate-examples-index:graph2d": "generate-examples-index --config generate-examples-index-graph2d.json",
-    "lint": "eslint {lib,test}/**/*.{m,}{j,t}s{x,}",
-    "clean": "rimraf --glob \"{dist,esnext,peer,standalone,styles}/*\"",
-    "contributors:update": "git-authors-cli",
-    "preparepublish": "npm run contributors:update",
-    "prepublishOnly": "npm run contributors:update && npm run build",
-    "prepare": "husky install"
-  },
-  "lint-staged": {
-    "*.{js,ts,css,html,json,md,yml,yaml}": "prettier --write",
-    "*.{js,ts}": "eslint --fix",
-    ".*.{js,ts,css,html,json,md,yml,yaml}": "prettier --write",
-    ".*.{js,ts}": "eslint --fix"
-  },
-  "peerDependencies": {
-    "@egjs/hammerjs": "^2.0.0",
-    "component-emitter": "^1.3.0",
-    "keycharm": "^0.2.0 || ^0.3.0 || ^0.4.0",
-    "moment": "^2.24.0",
-    "propagating-hammerjs": "^1.4.0 || ^2.0.0",
-    "uuid": "^3.4.0 || ^7.0.0 || ^8.0.0 || ^9.0.0",
-    "vis-data": "^6.3.0 || ^7.0.0",
-    "vis-util": "^5.0.1",
-    "xss": "^1.0.0"
-  },
-  "devDependencies": {
-    "@babel/core": "7.23.3",
-    "@babel/plugin-proposal-object-rest-spread": "7.20.7",
-    "@babel/plugin-transform-runtime": "7.23.3",
-    "@babel/preset-env": "7.23.3",
-    "@babel/preset-typescript": "7.23.3",
-    "@babel/register": "7.22.15",
-    "@babel/runtime-corejs3": "7.23.2",
-    "@egjs/hammerjs": "2.0.17",
-    "@rollup/plugin-babel": "6.0.4",
-    "@rollup/plugin-commonjs": "25.0.7",
-    "@rollup/plugin-json": "6.0.1",
-    "@rollup/plugin-node-resolve": "15.2.3",
-    "@rollup/plugin-terser": "0.4.4",
-    "@typescript-eslint/eslint-plugin": "5.62.0",
-    "@typescript-eslint/parser": "5.62.0",
-    "babel-plugin-css-modules-transform": "1.6.2",
-    "babel-plugin-istanbul": "6.1.1",
-    "chai": "4.3.10",
-    "chai-fs": "2.0.0",
-    "cheerio": "1.0.0-rc.12",
-    "component-emitter": "1.3.1",
-    "cpy-cli": "5.0.0",
-    "eslint": "8.57.0",
-    "eslint-config-prettier": "9.0.0",
-    "eslint-plugin-cypress": "2.15.1",
-    "eslint-plugin-eslint-comments": "3.2.0",
-    "eslint-plugin-jsdoc": "46.8.2",
-    "eslint-plugin-prettier": "4.2.1",
-    "find-up": "5.0.0",
-    "gh-pages": "6.1.1",
-    "git-authors-cli": "1.0.49",
-    "globby": "11.1.0",
-    "husky": "8.0.3",
-    "jimp": "0.22.10",
-    "jsdoc": "3.6.11",
-    "jsdom": "23.2.0",
-    "jsdom-global": "3.0.2",
-    "keycharm": "0.4.0",
-    "lint-staged": "15.2.2",
-    "mocha": "10.4.0",
-    "moment": "2.30.1",
-    "nyc": "15.1.0",
-    "postcss": "^8.4.38",
-    "postcss-assets": "6.0.0",
-    "prettier": "2.8.8",
-    "propagating-hammerjs": "2.0.1",
-    "puppeteer": "14.4.1",
-    "rimraf": "5.0.7",
-    "rollup": "3.29.4",
-    "rollup-plugin-analyzer": "4.0.0",
-    "rollup-plugin-copy": "3.5.0",
-    "rollup-plugin-css-porter": "^1.0.2",
-    "rollup-plugin-node-builtins": "^2.1.2",
-    "rollup-plugin-postcss": "4.0.2",
-    "rollup-plugin-string": "3.0.0",
-    "rollup-plugin-strip-code": "0.2.7",
-    "rollup-plugin-typescript2": "0.36.0",
-    "semantic-release": "22.0.12",
-    "snap-shot-it": "7.9.10",
-    "tmp": "0.2.1",
-    "tmp-promise": "3.0.2",
-    "typescript": "4.9.5",
-    "uuid": "9.0.1",
-    "vis-data": "7.1.9",
-    "vis-dev-utils": "4.0.45",
-    "vis-util": "5.0.7",
-    "xss": "1.0.15",
-    "yargs": "17.7.2"
-  },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/visjs"
-  },
+  "license": "(Apache-2.0 OR MIT)",
   "contributors": [
     "jos <wjosdejong@gmail.com>",
     "Alex de Mulder <alexdemulder@gmail.com>",
@@ -148,7 +23,7 @@
     "Alexander Wunschik <alex@wunschik.net>",
     "Ludo Stellingwerff <ludo@almende.org>",
     "Alex <AlexDM0@users.noreply.github.com>",
-    "Tomáš Vyčítal <tom.vycital@gmail.com>",
+    "Tom\u00e1\u0161 Vy\u010d\u00edtal <tom.vycital@gmail.com>",
     "wimrijnders <wrijnders@gmail.com>",
     "Eric Gillingham <Gillingham@bikezen.net>",
     "macleodbroad-wf <macleodbroad-wf@users.noreply.github.com>",
@@ -165,7 +40,7 @@
     "Uli Fahrer <Tooa@users.noreply.github.com>",
     "Felix Hayashi <ninshinobi@msn.com>",
     "Ben Morton <ben.morton91@gmail.com>",
-    "Jason Jijón <jasonex7@gmail.com>",
+    "Jason Jij\u00f3n <jasonex7@gmail.com>",
     "Ivo Silva <knokit@gmail.com>",
     "Rene Heindl <Rene.Heindl@goeg.at>",
     "Simon Morris <alkylate2000@gmail.com>",
@@ -201,8 +76,8 @@
     "Danny Larsen <danny@forecast.it>",
     "Denis Lisov <dennis.lissov@gmail.com>",
     "Fedor Tirsel <ftirsel@redhat.com>",
-    "Marc Krämer <github@mokraemer.de>",
-    "Marco Schnüriger <github@schnueriger.net>",
+    "Marc Kr\u00e4mer <github@mokraemer.de>",
+    "Marco Schn\u00fcriger <github@schnueriger.net>",
     "Jader Dias <jader.dias@booking.com>",
     "jangajack <jangajack@users.noreply.github.com>",
     "Jim O'Brien <jimmed@users.noreply.github.com>",
@@ -210,10 +85,10 @@
     "Liuqing Chen <lchen@parasoft.com>",
     "Melloware <mellowaredev@gmail.com>",
     "Brandon Mills <mills.brandont@gmail.com>",
-    "Ondřej Exner <ondra.ex@gmail.com>",
+    "Ond\u0159ej Exner <ondra.ex@gmail.com>",
     "Pascal Gula <pascal.gula@gmail.com>",
     "pinbe <pinbe@users.noreply.github.com>",
-    "Piotrek Żygieło <pzygielo@users.noreply.github.com>",
+    "Piotrek \u017bygie\u0142o <pzygielo@users.noreply.github.com>",
     "Scott Fairgrieve <scottfairgrieve@sfairgrieve-osx.local>",
     "Steven Jones <steven.jones@computerminds.co.uk>",
     "Tom Joseph <thomas.joseph@mountsinai.org>",
@@ -225,7 +100,7 @@
     "Luke Secomb <13529535+lukethacoder@users.noreply.github.com>",
     "MartinManev <16416643+MartinManev@users.noreply.github.com>",
     "daRoof <35702045+daRoof@users.noreply.github.com>",
-    "Nícolas F. R. A. Prado <43095212+nfraprado@users.noreply.github.com>",
+    "N\u00edcolas F. R. A. Prado <43095212+nfraprado@users.noreply.github.com>",
     "lmdc45 <47163513+lmdc45@users.noreply.github.com>",
     "Alexandre Filipiak <65644177+alexandrefilipiak@users.noreply.github.com>",
     "adamlarat <adam@larat.fr>",
@@ -254,7 +129,7 @@
     "Dinis Cruz <dinis@ddplus.net>",
     "domschmidt <dominik.mail@gmail.com>",
     "Duccio <ducciobreschi@gmail.com>",
-    "René Philipp Heindl <dude9177@gmail.com>",
+    "Ren\u00e9 Philipp Heindl <dude9177@gmail.com>",
     "easleydp <easleydp@gmail.com>",
     "AlexVangelov <email@data.bg>",
     "estronque <estronque@gmail.com>",
@@ -282,7 +157,7 @@
     "kbasten <kbasten@gmail.com>",
     "Kelvin Del Monte <kdelmonten@gmail.com>",
     "Ken Schumacher <kenshoe@google.com>",
-    "Luís Bianchin <labianchin@users.noreply.github.com>",
+    "Lu\u00eds Bianchin <labianchin@users.noreply.github.com>",
     "Jacob Lauzier <lauzierj@gmail.com>",
     "Lukas Bin <lbin@protonmail.com>",
     "lennartboeckx <lennart_boeckx@hotmail.com>",
@@ -291,7 +166,7 @@
     "littleguga <littleguga@users.noreply.github.com>",
     "lorrick <lorrick@orrickweb.com>",
     "Martin Lepadusch <m4r71n@users.noreply.github.com>",
-    "Måns Beckman <mans_beckman@mans-beckmans-macbook.local>",
+    "Ma\u030ans Beckman <mans_beckman@mans-beckmans-macbook.local>",
     "Fice <marcel_lambert@ymail.com>",
     "Lopton <mattework@yahoo.com>",
     "Maxime Douailin <maxime.douailin@gmail.com>",
@@ -312,7 +187,7 @@
     "Alexander <pyxarez@gmail.com>",
     "QiuJH <q19931101uu@gmail.com>",
     "Reed <RaekwonStorm@users.noreply.github.com>",
-    "Raphaël Pinson <raphael.pinson@camptocamp.com>",
+    "Rapha\u00ebl Pinson <raphael.pinson@camptocamp.com>",
     "Yaroslav Nechaev <remper@me.com>",
     "Rafael G Goes <rgriffogoes@gmail.com>",
     "Richard Ellerbrock <richard.ellerbrock@nextdc.com>",
@@ -335,5 +210,276 @@
     "Shao Wang <wsdonny@gmail.com>",
     "TATSUNO Yasuhiro <ytatsuno.jp@gmail.com>",
     "Tanya <zamorskatetiana@gmail.com>"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/visjs/vis-timeline.git"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/visjs"
+  },
+  "files": [
+    "HISTORY.md",
+    "declarations",
+    "dist",
+    "esnext",
+    "peer",
+    "standalone",
+    "styles",
+    "types"
+  ],
+  "type": "module",
+  "main": "./peer/umd/vis-timeline-graph2d.cjs",
+  "module": "./peer/esm/vis-timeline-graph2d.mjs",
+  "browser": "./peer/umd/vis-timeline-graph2d.min.cjs",
+  "types": "./declarations/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./peer/esm/vis-timeline-graph2d.mjs",
+      "require": "./peer/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./package.json": "./package.json",
+    "./declarations/index.d.ts": {
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone": {
+      "import": "./standalone/esm/vis-timeline-graph2d.mjs",
+      "require": "./standalone/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/esm/vis-timeline-graph2d.js": {
+      "import": "./standalone/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/esm/vis-timeline-graph2d.mjs": {
+      "import": "./standalone/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/esm/vis-timeline-graph2d.min.js": {
+      "import": "./standalone/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/esm/vis-timeline-graph2d.min.mjs": {
+      "import": "./standalone/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/umd/vis-timeline-graph2d.js": {
+      "require": "./standalone/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/umd/vis-timeline-graph2d.cjs": {
+      "require": "./standalone/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/umd/vis-timeline-graph2d.min.js": {
+      "require": "./standalone/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./standalone/umd/vis-timeline-graph2d.min.cjs": {
+      "require": "./standalone/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer": {
+      "import": "./peer/esm/vis-timeline-graph2d.mjs",
+      "require": "./peer/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/esm/vis-timeline-graph2d.js": {
+      "import": "./peer/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/esm/vis-timeline-graph2d.mjs": {
+      "import": "./peer/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/esm/vis-timeline-graph2d.min.js": {
+      "import": "./peer/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/esm/vis-timeline-graph2d.min.mjs": {
+      "import": "./peer/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/umd/vis-timeline-graph2d.js": {
+      "require": "./peer/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/umd/vis-timeline-graph2d.cjs": {
+      "require": "./peer/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/umd/vis-timeline-graph2d.min.js": {
+      "require": "./peer/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./peer/umd/vis-timeline-graph2d.min.cjs": {
+      "require": "./peer/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext": {
+      "import": "./esnext/esm/vis-timeline-graph2d.mjs",
+      "require": "./esnext/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/esm/vis-timeline-graph2d.js": {
+      "import": "./esnext/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/esm/vis-timeline-graph2d.mjs": {
+      "import": "./esnext/esm/vis-timeline-graph2d.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/esm/vis-timeline-graph2d.min.js": {
+      "import": "./esnext/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/esm/vis-timeline-graph2d.min.mjs": {
+      "import": "./esnext/esm/vis-timeline-graph2d.min.mjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/umd/vis-timeline-graph2d.js": {
+      "require": "./esnext/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/umd/vis-timeline-graph2d.cjs": {
+      "require": "./esnext/umd/vis-timeline-graph2d.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/umd/vis-timeline-graph2d.min.js": {
+      "require": "./esnext/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./esnext/umd/vis-timeline-graph2d.min.cjs": {
+      "require": "./esnext/umd/vis-timeline-graph2d.min.cjs",
+      "types": "./declarations/index.d.ts"
+    },
+    "./styles/*": "./styles/*",
+    "./dist/vis-timeline-graph2d": {
+      "import": "./dist/vis-timeline-graph2d.mjs",
+      "require": "./dist/vis-timeline-graph2d.cjs"
+    },
+    "./dist/vis-timeline-graph2d.js": {
+      "import": "./dist/vis-timeline-graph2d.mjs",
+      "require": "./dist/vis-timeline-graph2d.cjs"
+    },
+    "./dist/vis-timeline-graph2d.min": {
+      "import": "./dist/vis-timeline-graph2d.min.mjs",
+      "require": "./dist/vis-timeline-graph2d.min.cjs"
+    },
+    "./dist/vis-timeline-graph2d.min.js": {
+      "import": "./dist/vis-timeline-graph2d.min.mjs",
+      "require": "./dist/vis-timeline-graph2d.min.cjs"
+    },
+    "./dist/vis-timeline-graph2d.esm": {
+      "import": "./dist/vis-timeline-graph2d.mjs",
+      "require": "./dist/vis-timeline-graph2d.cjs"
+    },
+    "./dist/vis-timeline-graph2d.esm.js": {
+      "import": "./dist/vis-timeline-graph2d.mjs",
+      "require": "./dist/vis-timeline-graph2d.cjs"
+    },
+    "./dist/vis-timeline-graph2d.esm.min": {
+      "import": "./dist/vis-timeline-graph2d.min.mjs",
+      "require": "./dist/vis-timeline-graph2d.min.cjs"
+    },
+    "./dist/vis-timeline-graph2d.esm.min.js": {
+      "import": "./dist/vis-timeline-graph2d.min.mjs",
+      "require": "./dist/vis-timeline-graph2d.min.cjs"
+    }
+  },
+  "scripts": {
+    "test": "mocha --exit",
+    "test-cov": "nyc --reporter=lcov mocha --exit",
+    "build": "shx mkdir -p declarations && shx cp \"types/**/*\" \"declarations\" && rollup --config rollup.build.js && rollup --config rollup.config.js",
+    "watch": "rollup --watch --config rollup.build.js",
+    "generate-examples-index": "npm run generate-examples-index:timeline && npm run generate-examples-index:graph2d",
+    "generate-examples-index:timeline": "generate-examples-index --config generate-examples-index-timeline.json",
+    "generate-examples-index:graph2d": "generate-examples-index --config generate-examples-index-graph2d.json",
+    "style": "oxfmt --check .",
+    "style-fix": "oxfmt .",
+    "lint": "oxlint --report-unused-disable-directives-severity error .",
+    "lint-fix": "oxlint --report-unused-disable-directives-severity error --fix .",
+    "clean": "shx rm -rf \"{declarations,dist,esnext,peer,standalone,styles}/*\"",
+    "contributors:update": "git-authors-cli",
+    "preparepublish": "npm run contributors:update",
+    "prepublishOnly": "npm run contributors:update && npm run build",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
+    "@babel/plugin-transform-runtime": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@babel/runtime-corejs3": "^7.29.7",
+    "@egjs/hammerjs": "2.0.17",
+    "@rollup/plugin-babel": "7.1.0",
+    "@rollup/plugin-commonjs": "29.0.3",
+    "@rollup/plugin-json": "6.1.0",
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "@rollup/plugin-terser": "0.4.4",
+    "@rollup/plugin-typescript": "12.3.0",
+    "babel-plugin-istanbul": "8.0.0",
+    "chai": "6.2.2",
+    "cheerio": "1.2.0",
+    "component-emitter": "1.3.1",
+    "css-select": "7.0.0",
+    "find-up": "8.0.0",
+    "gh-pages": "6.3.0",
+    "git-authors-cli": "1.0.53",
+    "globby": "14.1.0",
+    "husky": "9.1.7",
+    "jimp": "1.6.1",
+    "jsdoc": "3.6.11",
+    "jsdom": "30.0.0",
+    "jsdom-global": "3.0.2",
+    "keycharm": "0.4.0",
+    "lint-staged": "17.2.0",
+    "mocha": "11.7.6",
+    "moment": "2.30.1",
+    "nyc": "18.0.0",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "postcss-assets": "6.0.0",
+    "propagating-hammerjs": "3.0.0",
+    "puppeteer": "24.43.1",
+    "rollup": "4.44.2",
+    "rollup-plugin-analyzer": "4.0.0",
+    "rollup-plugin-copy": "3.5.0",
+    "rollup-plugin-postcss": "4.0.2",
+    "rollup-plugin-string": "3.0.0",
+    "semantic-release": "25.0.8",
+    "shx": "0.4.0",
+    "snap-shot-it": "7.9.10",
+    "tmp": "0.2.3",
+    "tmp-promise": "3.0.3",
+    "typescript": "5.9.3",
+    "uuid": "14.0.1",
+    "vis-data": "8.0.4",
+    "vis-dev-utils": "7.1.1",
+    "vis-util": "6.0.0",
+    "xss": "1.0.15",
+    "yargs": "18.0.0"
+  },
+  "peerDependencies": {
+    "@egjs/hammerjs": "^2.0.0",
+    "component-emitter": "^1.3.0",
+    "keycharm": "^0.2.0 || ^0.3.0 || ^0.4.0",
+    "moment": "^2.24.0",
+    "propagating-hammerjs": "^1.4.0 || ^2.0.0 || ^3.0.0",
+    "uuid": "^3.4.0 || ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0 || ^13.0.0 || ^14.0.0",
+    "vis-data": ">=8.0.0",
+    "vis-util": ">=6.0.0",
+    "xss": "^1.0.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,css,html,json,md,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern",
+    "*.{js,ts}": "oxlint --no-error-on-unmatched-pattern --report-unused-disable-directives-severity error --fix",
+    ".*.{js,ts,css,html,json,md,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern",
+    ".*.{js,ts}": "oxlint --no-error-on-unmatched-pattern --report-unused-disable-directives-severity error --fix"
+  },
+  "jsnext": "./esnext/esm/vis-timeline-graph2d.mjs"
 }

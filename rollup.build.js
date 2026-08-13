@@ -1,6 +1,6 @@
 import { generateRollupConfiguration } from "vis-dev-utils";
 
-import packageJSON from "./package.json";
+import packageJSON from "./package.json" with { type: "json" };
 
 const baseConfig = generateRollupConfiguration({
   externalForPeerBuild: ["moment", "vis-data"],
@@ -21,6 +21,6 @@ const baseConfig = generateRollupConfiguration({
   packageJSON,
 });
 
-export default baseConfig.then((result) =>
-  result.filter((v) => v.input.includes("esnext"))
+export default Promise.resolve(baseConfig).then((result) =>
+  result.filter((v) => v.input.includes("esnext")),
 );
