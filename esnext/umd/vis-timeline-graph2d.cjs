@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T10:07:37.006Z
+ * @date    2026-08-13T10:17:51.035Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1464,23 +1464,50 @@ class Group {
    * @param {object} range
    * @private
    */
+  /**
+   * Exact signature of the currently visible (stackable) items, used to
+   * detect whether the stacked set changed since the last stacking pass.
+   * @return {string} signature
+   * @private
+   */
+  _stackMembershipSignature() {
+    const items = this.visibleItems;
+    let signature = items.length + ":";
+    for (let i = 0; i < items.length; i++) {
+      signature += items[i].id + ",";
+    }
+    return signature;
+  }
+
+  /**
+   * Remember the context of the last real stacking pass.
+   * @param {number} stackSpan visible range span the stacking was based on
+   * @param {string} signature membership signature the stacking was based on
+   * @private
+   */
+  _recordStackContext(stackSpan, signature) {
+    this._lastStackSpan = stackSpan;
+    this._lastStackWidth = this.width;
+    this._lastStackSignature = signature;
+  }
+
   _redrawItems(forceRestack, lastIsVisible, margin, range) {
     const restack =
       forceRestack || this.stackDirty || (this.isVisible && !lastIsVisible);
 
-    // The ungrouped (standby) panel keeps every item visible, so during a
-    // pure horizontal pan (zoom scale, group width, and item set unchanged)
-    // every item shifts by the same pixel delta and the vertical stacking
-    // cannot change. Skip the expensive restack in that case and only
-    // reposition items horizontally.
+    // During a pure horizontal pan (zoom scale and group width unchanged,
+    // no data changes) every item shifts by the same pixel delta, so if the
+    // set of stacked items is also identical to the set of the last real
+    // stacking pass, the vertical stacking result cannot change and the
+    // expensive restack can be skipped. The membership is compared with an
+    // exact id signature after the visible items are refreshed - a count
+    // alone is not enough, as items can enter and leave in the same pan step.
     const stackSpan = range.end - range.start;
-    const translationOnly =
-      this.groupId === UNGROUPED$4 &&
+    const stackContextUnchanged =
       !this.stackDirty &&
       !(this.isVisible && !lastIsVisible) &&
       this._lastStackSpan === stackSpan &&
-      this._lastStackWidth === this.width &&
-      this._lastStackCount === this.visibleItems.length;
+      this._lastStackWidth === this.width;
 
     // if restacking, reposition visible items vertically
     if (restack) {
@@ -1550,16 +1577,14 @@ class Group {
         const me = this;
         if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
           // Order the items within each subgroup
-          if (!translationOnly) {
-            const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup(
-              this.itemSet.options.order,
-            );
-            stackSubgroupsWithInnerStack(
-              visibleSubgroupsItems,
-              margin,
-              this.subgroups,
-            );
-          }
+          const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup(
+            this.itemSet.options.order,
+          );
+          stackSubgroupsWithInnerStack(
+            visibleSubgroupsItems,
+            margin,
+            this.subgroups,
+          );
           this.visibleItems = getVisibleItems();
           this._updateSubGroupHeights(margin);
         } else {
@@ -1567,7 +1592,8 @@ class Group {
           this._updateSubGroupHeights(margin);
           // order all items and force a restacking
           // order all items outside clusters and force a restacking
-          if (!translationOnly) {
+          const signature = this._stackMembershipSignature();
+          if (stackContextUnchanged && signature === this._lastStackSignature) ; else {
             const customOrderedItems = this.visibleItems
               .slice()
               .filter(
@@ -1582,6 +1608,7 @@ class Group {
               true,
               this._shouldBailItemsRedraw.bind(this),
             );
+            this._recordStackContext(stackSpan, signature);
           }
         }
       } else {
@@ -1590,7 +1617,7 @@ class Group {
         this._updateSubGroupHeights(margin);
 
         if (this.itemSet.options.stack) {
-          if (translationOnly) ; else if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
+          if (this.doInnerStack && this.itemSet.options.stackSubgroups) {
             const visibleSubgroupsItems = getVisibleItemsGroupedBySubgroup();
             stackSubgroupsWithInnerStack(
               visibleSubgroupsItems,
@@ -1598,13 +1625,20 @@ class Group {
               this.subgroups,
             );
           } else {
-            // TODO: ugly way to access options...
-            this.shouldBailStackItems = stack(
-              this.visibleItems,
-              margin,
-              true,
-              this._shouldBailItemsRedraw.bind(this),
-            );
+            const signature = this._stackMembershipSignature();
+            if (
+              stackContextUnchanged &&
+              signature === this._lastStackSignature
+            ) ; else {
+              // TODO: ugly way to access options...
+              this.shouldBailStackItems = stack(
+                this.visibleItems,
+                margin,
+                true,
+                this._shouldBailItemsRedraw.bind(this),
+              );
+              this._recordStackContext(stackSpan, signature);
+            }
           }
         } else {
           // no stacking
@@ -1639,11 +1673,6 @@ class Group {
 
       if (this.shouldBailStackItems) {
         this.itemSet.body.emitter.emit("destroyTimeline");
-      }
-      if (this.groupId === UNGROUPED$4) {
-        this._lastStackSpan = stackSpan;
-        this._lastStackWidth = this.width;
-        this._lastStackCount = this.visibleItems.length;
       }
       this.stackDirty = false;
     }
@@ -1712,8 +1741,14 @@ class Group {
       // recalculate the height of the subgroups
       this._updateSubGroupHeights.bind(this, margin),
 
-      // calculate actual size and position
-      this._calculateGroupSizeAndPosition.bind(this),
+      // calculate actual size and position (offsets can only have changed
+      // when group heights, group order, or the container geometry changed,
+      // which the itemSet tracks - skip the forced layout read otherwise)
+      () => {
+        if (this.itemSet._groupOffsetsDirty !== false) {
+          this._calculateGroupSizeAndPosition.bind(this)();
+        }
+      },
 
       () => {
         this.isVisible = this._isGroupVisible.bind(this)(range, margin);
@@ -1732,11 +1767,22 @@ class Group {
       this._updateSubgroupsSizes.bind(this),
 
       () => {
-        height = this.height = this._calculateHeight.bind(this)(margin);
+        const newHeight = this._calculateHeight.bind(this)(margin);
+        if (newHeight !== this.height) {
+          this.itemSet._groupHeightsChangedInPass = true;
+        }
+        height = this.height = newHeight;
       },
 
-      // calculate actual size and position again
-      this._calculateGroupSizeAndPosition.bind(this),
+      // calculate actual size and position again (see the note on the first
+      // pass - the group heights computed above are only written to the DOM
+      // in a later stage, so this read too is only needed when offsets were
+      // already dirty coming into this redraw)
+      () => {
+        if (this.itemSet._groupOffsetsDirty !== false) {
+          this._calculateGroupSizeAndPosition.bind(this)();
+        }
+      },
 
       () => {
         resized = this._didResize.bind(this)(resized, height);
@@ -10433,6 +10479,13 @@ class ItemSet extends Component {
     this.options.ungroupedHeaderTemplate = options.ungroupedHeaderTemplate;
     this.options.ungroupedTemplate = options.ungroupedTemplate;
 
+    // Group offsets (top/left/width) must be re-read from the DOM after
+    // anything that can move or resize groups: height changes, group
+    // add/remove/reorder, or container geometry changes. Between such
+    // changes the reads are skipped to avoid forced layouts on every pan.
+    this._groupOffsetsDirty = true;
+    this._groupHeightsChangedInPass = false;
+
     // create the HTML DOM
     this._create();
 
@@ -10625,6 +10678,7 @@ class ItemSet extends Component {
    *                              If not implemented, the item will be always removed.
    */
   setOptions(options) {
+    this._groupOffsetsDirty = true;
     if (options) {
       // copy all options that we know
       const fields = [
@@ -11164,6 +11218,14 @@ class ItemSet extends Component {
     // reorder the groups (if needed)
     resized = this._orderGroups() || resized;
 
+    // container geometry or group order changes move groups around
+    const centerContainerWidth = this.body.domProps.centerContainer.width;
+    if (resized || centerContainerWidth !== this._lastCenterContainerWidth) {
+      this._lastCenterContainerWidth = centerContainerWidth;
+      this._groupOffsetsDirty = true;
+    }
+    this._groupHeightsChangedInPass = false;
+
     // check whether zoomed (in that case we need to re-stack everything)
     // TODO: would be nicer to get this as a trigger from Range
     const visibleInterval = range.end - range.start;
@@ -11237,10 +11299,18 @@ class ItemSet extends Component {
     height = Math.max(height, minHeight);
 
     // update frame height
-    frame.style.height = asSize(height);
+    const frameHeight = asSize(height);
+    if (this._lastFrameHeight !== frameHeight) {
+      this._lastFrameHeight = frameHeight;
+      frame.style.height = frameHeight;
+      this._groupOffsetsDirty = true;
+    }
 
-    // calculate actual size
-    this.props.width = frame.offsetWidth;
+    // calculate actual size (the width can only have changed when the
+    // geometry changed; skip the forced layout read otherwise)
+    if (this._groupOffsetsDirty !== false) {
+      this.props.width = frame.offsetWidth;
+    }
     this.props.height = height;
 
     // reposition axis
@@ -11261,6 +11331,11 @@ class ItemSet extends Component {
     this.initialItemSetDrawn = true;
     // check if this component is resized
     resized = this._isResized() || resized;
+
+    // The offset reads above are now up to date. Group heights are written
+    // to the DOM after the reads, so if any height changed in this pass the
+    // offsets must be re-read on the next one.
+    this._groupOffsetsDirty = this._groupHeightsChangedInPass;
 
     return resized;
   }
@@ -11285,6 +11360,7 @@ class ItemSet extends Component {
    * @protected
    */
   _updateUngrouped() {
+    this._groupOffsetsDirty = true;
     let ungrouped = this.groups[UNGROUPED$2];
     let item;
     let itemId;
@@ -11339,6 +11415,7 @@ class ItemSet extends Component {
    * @param {vis.DataSet | null} items
    */
   setItems(items) {
+    this._groupOffsetsDirty = true;
     this.itemsSettingTime = new Date();
     const me = this;
     let ids;
@@ -11400,6 +11477,7 @@ class ItemSet extends Component {
    * @param {vis.DataSet} groups
    */
   setGroups(groups) {
+    this._groupOffsetsDirty = true;
     const me = this;
     let ids;
 
@@ -11630,6 +11708,7 @@ class ItemSet extends Component {
    * @private
    */
   _onAddGroups(ids) {
+    this._groupOffsetsDirty = true;
     const me = this;
 
     ids.forEach((id) => {
@@ -11675,6 +11754,7 @@ class ItemSet extends Component {
    * @private
    */
   _onRemoveGroups(ids) {
+    this._groupOffsetsDirty = true;
     ids.forEach((id) => {
       const group = this.groups[id];
 
