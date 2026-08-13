@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T12:39:25.488Z
+ * @date    2026-08-13T12:49:47.466Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1748,6 +1748,7 @@ class Group {
    */
   _updateItemsVerticalPosition(margin) {
     const band = this._verticalBand;
+    let contentBottom = 0;
     for (let i = 0, ii = this.visibleItems.length; i < ii; i++) {
       const item = this.visibleItems[i];
       item.repositionY(margin);
@@ -1759,6 +1760,9 @@ class Group {
         // intersecting the panel's scrolled viewport are rendered. Hiding
         // detaches the item DOM, which also unmounts its React card.
         const itemBottom = item.top + (item.height || 0);
+        if (itemBottom > contentBottom) {
+          contentBottom = itemBottom;
+        }
         if (itemBottom < band.top || item.top > band.bottom) {
           if (item.displayed) item.hide();
         } else if (!item.displayed) {
@@ -1766,6 +1770,16 @@ class Group {
           item.repositionX();
           item.repositionY(margin);
         }
+      }
+    }
+
+    if (band) {
+      // Hidden rows render no DOM, so without an explicit height the panel
+      // could not be scrolled past the rendered rows.
+      const contentHeight = Math.ceil(contentBottom + margin.item.vertical);
+      if (this._lastPanelContentHeight !== contentHeight) {
+        this._lastPanelContentHeight = contentHeight;
+        this.dom.ungrouped.style.height = `${contentHeight}px`;
       }
     }
   }
@@ -1781,8 +1795,8 @@ class Group {
     if (this.groupId !== UNGROUPED$4 || !this.itemSet.options.showUngroupedItems) {
       return null;
     }
-    const panel = this.itemSet.body.dom.bottom;
-    if (!panel) {
+    const panel = this.itemSet.dom.ungrouped;
+    if (!panel || !panel.parentNode) {
       return null;
     }
     const buffer = 150;
@@ -11145,19 +11159,24 @@ class ItemSet extends Component {
       if (!this._ungroupedScrollHooked) {
         this._ungroupedScrollHooked = true;
         let scheduled = false;
-        this.body.dom.bottom.addEventListener(
-          "scroll",
-          () => {
-            if (!scheduled) {
-              scheduled = true;
-              requestAnimationFrame(() => {
-                scheduled = false;
-                this.body.emitter.emit("_change");
-              });
-            }
-          },
-          { passive: true }
-        );
+        const onPanelScroll = () => {
+          if (!scheduled) {
+            scheduled = true;
+            requestAnimationFrame(() => {
+              scheduled = false;
+              this.body.emitter.emit("_change");
+            });
+          }
+        };
+        this.dom.ungrouped.addEventListener("scroll", onPanelScroll, {
+          passive: true,
+        });
+        // capture-phase listener catches whichever ancestor ends up
+        // scrolling under app-controlled styling
+        this.body.dom.bottom.addEventListener("scroll", onPanelScroll, {
+          passive: true,
+          capture: true,
+        });
       }
     }
 
