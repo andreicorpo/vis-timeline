@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T11:43:29.893Z
+ * @date    2026-08-13T12:39:25.488Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1747,13 +1747,49 @@ class Group {
    * @param {number} margin
    */
   _updateItemsVerticalPosition(margin) {
+    const band = this._verticalBand;
     for (let i = 0, ii = this.visibleItems.length; i < ii; i++) {
       const item = this.visibleItems[i];
       item.repositionY(margin);
       if (!this.isVisible && this.groupId != ReservedGroupIds$2.BACKGROUND) {
         if (item.displayed) item.hide();
+      } else if (band && item.top != null) {
+        // Vertical virtualization of the standby panel: every item takes
+        // part in stacking (row layout must be complete), but only rows
+        // intersecting the panel's scrolled viewport are rendered. Hiding
+        // detaches the item DOM, which also unmounts its React card.
+        const itemBottom = item.top + (item.height || 0);
+        if (itemBottom < band.top || item.top > band.bottom) {
+          if (item.displayed) item.hide();
+        } else if (!item.displayed) {
+          item.show();
+          item.repositionX();
+          item.repositionY(margin);
+        }
       }
     }
+  }
+
+  /**
+   * The vertical pixel band of the standby panel that should currently be
+   * rendered, or null for ordinary groups (whose vertical windowing is
+   * handled through group visibility).
+   * @returns {null | {top: number, bottom: number}} band
+   * @private
+   */
+  _computeVerticalBand() {
+    if (this.groupId !== UNGROUPED$4 || !this.itemSet.options.showUngroupedItems) {
+      return null;
+    }
+    const panel = this.itemSet.body.dom.bottom;
+    if (!panel) {
+      return null;
+    }
+    const buffer = 150;
+    return {
+      top: panel.scrollTop - buffer,
+      bottom: panel.scrollTop + panel.clientHeight + buffer,
+    };
   }
 
   /**
@@ -1766,6 +1802,7 @@ class Group {
    */
   redraw(range, margin, forceRestack, returnQueue) {
     let resized = false;
+    this._verticalBand = this._computeVerticalBand();
     const lastIsVisible = this.isVisible;
     let height;
 
@@ -2460,9 +2497,19 @@ class Group {
    */
   _checkIfVisible(item, visibleItems, range) {
     if (item.isVisible(this._getItemVisibilityRange(range))) {
-      if (!item.displayed) item.show();
-      // reposition item horizontally
-      item.repositionX();
+      const band = this._verticalBand;
+      const outsideBand =
+        band &&
+        item.top != null &&
+        (item.top + (item.height || 0) < band.top || item.top > band.bottom);
+      if (outsideBand) {
+        // still part of the stacked layout, but not rendered
+        if (item.displayed) item.hide();
+      } else {
+        if (!item.displayed) item.show();
+        // reposition item horizontally
+        item.repositionX();
+      }
       visibleItems.push(item);
     } else {
       if (item.displayed) item.hide();
@@ -2486,6 +2533,15 @@ class Group {
       if (visibleItemsLookup[item.id] === undefined) {
         visibleItemsLookup[item.id] = true;
         visibleItems.push(item);
+      }
+      const band = this._verticalBand;
+      if (
+        band &&
+        item.displayed &&
+        item.top != null &&
+        (item.top + (item.height || 0) < band.top || item.top > band.bottom)
+      ) {
+        item.hide();
       }
     } else {
       if (item.displayed) item.hide();
@@ -11084,6 +11140,25 @@ class ItemSet extends Component {
       this.body.dom.bottom.appendChild(this.dom.ungroupedHeader);
 
       this.body.dom.bottom.appendChild(this.dom.ungrouped);
+
+      // vertical virtualization of the panel: reveal rows on scroll
+      if (!this._ungroupedScrollHooked) {
+        this._ungroupedScrollHooked = true;
+        let scheduled = false;
+        this.body.dom.bottom.addEventListener(
+          "scroll",
+          () => {
+            if (!scheduled) {
+              scheduled = true;
+              requestAnimationFrame(() => {
+                scheduled = false;
+                this.body.emitter.emit("_change");
+              });
+            }
+          },
+          { passive: true }
+        );
+      }
     }
 
     // show axis with dots
