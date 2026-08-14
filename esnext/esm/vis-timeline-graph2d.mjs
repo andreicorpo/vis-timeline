@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-13T14:56:36.044Z
+ * @date    2026-08-14T04:27:44.951Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -11212,7 +11212,7 @@ class ItemSet extends Component {
         this.dom.ungroupedHeader.innerHTML = "Ungrouped Items";
         this.dom.ungroupedHeader.style.padding = "8px";
         this.dom.ungroupedHeader.style.backgroundColor = "white";
-        this.dom.ungroupedHeader.addEventListener("click", (e) => {
+        this.dom.ungroupedHeader.addEventListener("click", () => {
           if (!this.dom.ungrouped.style.height) {
             this.dom.ungrouped.style.height = "250px";
           } else {
