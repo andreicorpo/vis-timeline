@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-14T04:27:44.951Z
+ * @date    2026-08-19T11:20:05.685Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -929,10 +929,15 @@ function performStacking(
     }
     previousEnd = itemEnd;
 
-    // Sort by vertical position so we don't have to reconsider past items if we move an item
+    // Sort by vertical position so we don't have to reconsider past items if we move an item.
+    // The full two-sided overlap check is deliberate: the index window is an
+    // optimization and must never be the only thing standing between an item
+    // and a phantom collision.
     const horizontallyCollidingItems = filterBetween(
       itemsAlreadyPositioned,
-      (i) => itemStart < getItemEnd(i) - EPSILON,
+      (i) =>
+        itemStart < getItemEnd(i) - EPSILON &&
+        itemEnd - EPSILON > getItemStart(i),
       horizontalOverlapStartIndex,
       horizontalOverlapEndIndex,
     ).toSorted((a, b) => a.top - b.top);
@@ -1011,7 +1016,7 @@ function checkVerticalSpatialCollision(a, b, margin) {
  * @return {number}
  */
 function findIndexFrom(arr, predicate, startIndex) {
-  if (!startIndex) {
+  if (startIndex === undefined) {
     startIndex = 0;
   }
   for (let i = startIndex; i < arr.length; i++) {
@@ -1034,11 +1039,13 @@ function findIndexFrom(arr, predicate, startIndex) {
  * @return {number}
  */
 function findLastIndexBetween(arr, predicate, startIndex, endIndex) {
-  if (!startIndex) {
+  if (startIndex === undefined) {
     startIndex = 0;
   }
 
-  if (!endIndex) {
+  // endIndex can legitimately be 0 (an empty range); only an omitted bound
+  // means "to the end of the array"
+  if (endIndex === undefined) {
     endIndex = arr.length;
   }
 
@@ -1062,13 +1069,17 @@ function findLastIndexBetween(arr, predicate, startIndex, endIndex) {
  * @return {number}
  */
 function filterBetween(arr, predicate, startIndex, endIndex) {
-  if (!startIndex) {
+  if (startIndex === undefined) {
     startIndex = 0;
   }
-  if (endIndex) {
-    endIndex = Math.min(endIndex, arr.length);
-  } else {
+  // endIndex can legitimately be 0 (an empty range); only an omitted bound
+  // means "to the end of the array". Treating 0 as falsy here made every
+  // empty overlap window scan the whole array, producing phantom collisions
+  // for items processed in descending-start order.
+  if (endIndex === undefined) {
     endIndex = arr.length;
+  } else {
+    endIndex = Math.min(endIndex, arr.length);
   }
 
   const result = [];
