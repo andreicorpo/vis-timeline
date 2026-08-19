@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-19T11:20:47.276Z
+ * @date    2026-08-19T12:17:47.008Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1223,6 +1223,36 @@ class Group {
     inner.className = "vis-inner";
     label.appendChild(inner);
     this.dom.inner = inner;
+
+    // The label size is only re-measured when marked dirty (see _didResize)
+    // so redraws don't force a layout per group per frame. The label content
+    // can change size outside vis's control though - template content
+    // rendering asynchronously (e.g. React portals), stylesheets or fonts
+    // loading - so watch the element and mark the size dirty when that
+    // happens. ResizeObserver callbacks run after layout, making the reads
+    // here cheap, and the redraw is coalesced across groups: without it,
+    // groups whose height is driven by the label (no visible items) would
+    // keep a stale 0 height, collapsing the itemset height and disabling
+    // vertical scrolling until an unrelated change forced a re-measure.
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        const labelProps = this.props.label;
+        if (inner.clientWidth !== labelProps.width || inner.clientHeight !== labelProps.height) {
+          this._labelSizeDirty = true;
+          const itemSet = this.itemSet;
+          itemSet._groupOffsetsDirty = true;
+          if (!itemSet._labelResizeRedrawScheduled) {
+            itemSet._labelResizeRedrawScheduled = true;
+            requestAnimationFrame(() => {
+              itemSet._labelResizeRedrawScheduled = false;
+              itemSet.body.emitter.emit("_change");
+            });
+          }
+        }
+      });
+      observer.observe(inner);
+      this._disposeCallbacks.push(() => observer.disconnect());
+    }
 
     const foreground = document.createElement("div");
     foreground.className = "vis-group";
