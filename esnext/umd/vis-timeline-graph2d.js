@@ -5,7 +5,7 @@
  * Create a fully customizable, interactive timeline with items and ranges.
  *
  * @version 0.0.2
- * @date    2026-08-19T11:20:05.685Z
+ * @date    2026-08-19T11:20:47.276Z
  *
  * @copyright (c) 2011-2017 Almende B.V, http://almende.com
  * @copyright (c) 2017-2019 visjs contributors, https://github.com/visjs
@@ -1548,8 +1548,16 @@ class Group {
   }
 
   _redrawItems(forceRestack, lastIsVisible, margin, range) {
+    // A pending deferred restack must run on the first redraw after the fast
+    // pan ends (the settle redraw arrives with forceRestack false because the
+    // range no longer changes, so without this the deferral would never land
+    // and items would keep their provisional tops).
     const restack =
-      forceRestack || this.stackDirty || (this.isVisible && !lastIsVisible);
+      forceRestack ||
+      this.stackDirty ||
+      (this.isVisible && !lastIsVisible) ||
+      (this._restackDeferred === true &&
+        this.itemSet._fastPanActive !== true);
 
     // During a pure horizontal pan (zoom scale and group width unchanged,
     // no data changes) every item shifts by the same pixel delta, so if the
